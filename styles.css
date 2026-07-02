@@ -1,14 +1,17 @@
 :root {
-  --bg: #f6f7fb;
+  /* WYYYES 브랜드: 다크 네이비 + 레드 포인트 */
+  --bg: #f5f6f9;
   --card: #ffffff;
-  --text: #1c2333;
-  --muted: #7b8399;
+  --text: #131b31;
+  --muted: #767e93;
   --border: #e3e6ef;
-  --primary: #4f5df0;
-  --primary-dark: #3b48d6;
+  --navy: #0d1226;
+  --navy-deep: #080a1a;
+  --primary: #d7001f;
+  --primary-dark: #b00019;
   --danger: #e5484d;
   --radius: 10px;
-  --shadow: 0 1px 3px rgba(20, 26, 60, 0.08);
+  --shadow: 0 1px 3px rgba(8, 10, 26, 0.08);
 }
 
 * { box-sizing: border-box; }
@@ -47,47 +50,91 @@ input, select, textarea {
   color: var(--text);
   width: 100%;
 }
-input:focus, select:focus, textarea:focus { outline: 2px solid #c7ccff; border-color: var(--primary); }
+input:focus, select:focus, textarea:focus { outline: 2px solid rgba(19, 27, 49, 0.18); border-color: var(--navy); }
 
 /* ── 게이트 (설정/로그인) ── */
 .gate {
   position: fixed; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(160deg, #eef0ff 0%, #f6f7fb 100%);
+  background: radial-gradient(120% 120% at 50% 0%, #141c38 0%, var(--navy-deep) 60%);
   padding: 20px;
 }
 .gate-card {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
-  box-shadow: var(--shadow);
-  padding: 36px 32px;
+  padding: 40px 32px;
   max-width: 400px;
   width: 100%;
   text-align: center;
+  color: #fff;
 }
 .gate-card h1 { font-size: 20px; margin: 0 0 10px; }
-.gate-card p { color: var(--muted); margin: 0 0 20px; line-height: 1.6; }
+.gate-card .wordmark { display: block; font-size: 34px; margin-bottom: 6px; }
+.gate-card .gate-sub { font-size: 13px; font-weight: 600; letter-spacing: 3px; color: #8b93ab; text-transform: uppercase; }
+.gate-card p { color: #8b93ab; margin: 14px 0 22px; line-height: 1.6; }
+.gate-card input {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #fff; text-align: center;
+}
+.gate-card input::placeholder { color: #6b7288; }
+.gate-card input:focus { outline: 2px solid rgba(215, 0, 31, 0.45); border-color: var(--primary); }
+.gate-card button { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700; padding: 10px; }
+.gate-card button:hover { background: var(--primary-dark); }
 .gate-card form { display: flex; flex-direction: column; gap: 10px; }
-.error-msg { color: var(--danger); font-size: 13px; }
+.error-msg { color: #ff6b7a; font-size: 13px; }
 
-/* ── 상단바 ── */
+/* WYYYES 워드마크 */
+.wordmark {
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+/* ── 상단바 (브랜드 다크 네이비) ── */
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px;
   padding: 10px 20px;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
+  background: var(--navy);
   position: sticky; top: 0; z-index: 20;
   flex-wrap: wrap;
 }
 .topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.logo { font-weight: 700; font-size: 15px; }
-.tabs { display: flex; gap: 4px; }
-.tab-btn { border: none; background: none; padding: 8px 12px; border-radius: 8px; color: var(--muted); font-weight: 500; }
-.tab-btn:hover { background: var(--bg); color: var(--text); }
-.tab-btn.active { background: #eceeff; color: var(--primary); font-weight: 700; }
-#me-select { width: auto; }
+.logo { font-weight: 600; font-size: 13px; color: #8b93ab; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.logo .wordmark { font-size: 18px; color: #fff; }
+.tabs { display: flex; gap: 2px; }
+.tab-btn {
+  border: none; background: none;
+  padding: 8px 14px; border-radius: 8px;
+  color: #8b93ab; font-weight: 600;
+  position: relative;
+}
+.tab-btn:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
+.tab-btn.active { background: rgba(255, 255, 255, 0.09); color: #fff; }
+.tab-btn.active::after {
+  content: "";
+  position: absolute; left: 14px; right: 14px; bottom: 4px;
+  height: 2px; border-radius: 2px;
+  background: var(--primary);
+}
+.topbar button {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #dfe3ee;
+}
+.topbar button:hover { border-color: #fff; color: #fff; }
+.topbar button.primary { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700; }
+.topbar button.primary:hover { background: var(--primary-dark); }
+#me-select {
+  width: auto;
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+#me-select option { color: var(--text); background: #fff; }
 
 /* ── 공통 레이아웃 ── */
 .tab-panel { padding: 20px; max-width: 1500px; margin: 0 auto; }
@@ -134,7 +181,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #c7ccff; border-c
 .bar-track { flex: 1; background: var(--bg); border-radius: 6px; height: 22px; position: relative; }
 .bar-fill {
   height: 100%; border-radius: 6px;
-  background: linear-gradient(90deg, #6c79ff, #4f5df0);
+  background: linear-gradient(90deg, #3a4568, #131b31);
   min-width: 2px;
   transition: width .3s;
 }
