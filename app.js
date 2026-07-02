@@ -1,4 +1,4 @@
-/* WYYYES 세일즈 파이프라인 SPA */
+/* WYYYES GTM 세일즈 파이프라인 SPA */
 (() => {
   const CFG = window.APP_CONFIG || {};
   const STAGES = ["발굴", "컨택", "응답확인", "협의중", "온보딩", "승인", "보류", "제외"];
