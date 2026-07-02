@@ -70,8 +70,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(19, 27, 49, 
   color: #fff;
 }
 .gate-card h1 { font-size: 20px; margin: 0 0 10px; }
-.gate-card .wordmark { display: block; font-size: 34px; margin-bottom: 6px; }
-.gate-card .gate-sub { font-size: 13px; font-weight: 600; letter-spacing: 3px; color: #8b93ab; text-transform: uppercase; }
+.gate-card .gate-logo { display: block; height: 34px; width: auto; margin: 0 auto 12px; }
+.gate-card .gate-sub { display: block; font-size: 13px; font-weight: 600; letter-spacing: 3px; color: #8b93ab; text-transform: uppercase; }
 .gate-card p { color: #8b93ab; margin: 14px 0 22px; line-height: 1.6; }
 .gate-card input {
   background: rgba(255, 255, 255, 0.07);
@@ -85,13 +85,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(19, 27, 49, 
 .gate-card form { display: flex; flex-direction: column; gap: 10px; }
 .error-msg { color: #ff6b7a; font-size: 13px; }
 
-/* WYYYES 워드마크 */
-.wordmark {
-  font-style: italic;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
-}
+/* WYYYES 로고 이미지 */
+.logo-img { height: 15px; width: auto; display: inline-block; vertical-align: -1px; }
 
 /* ── 상단바 (브랜드 다크 네이비) ── */
 .topbar {
@@ -103,8 +98,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(19, 27, 49, 
   flex-wrap: wrap;
 }
 .topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.logo { font-weight: 600; font-size: 13px; color: #8b93ab; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
-.logo .wordmark { font-size: 18px; color: #fff; }
+.logo { font-weight: 600; font-size: 13px; color: #8b93ab; display: flex; align-items: center; gap: 9px; white-space: nowrap; }
 .tabs { display: flex; gap: 2px; }
 .tab-btn {
   border: none; background: none;
