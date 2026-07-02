@@ -106,7 +106,7 @@ def rows_from_sheet(ws, owner, collab_type):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("xlsx")
-    ap.add_argument("--owner", default="Ian")
+    ap.add_argument("--owner", default="Danny")
     ap.add_argument("--collab", default="TCG 릴스 협업")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
