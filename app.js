@@ -5,6 +5,7 @@
   const OPEN_STAGES = ["발굴", "컨택", "응답확인", "협의중", "온보딩", "승인"];
   const CONTACTING = ["컨택", "응답확인", "협의중", "온보딩"];
   const TYPE_LABEL = { dealer: "딜러", influencer: "인플루언서" };
+  const OWNERS = [...(CFG.OWNERS || [])].sort((a, b) => a.localeCompare(b));
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -106,7 +107,7 @@
   function initControls() {
     // 내 이름
     const meSel = $("#me-select");
-    meSel.innerHTML = (CFG.OWNERS || []).map((o) => `<option>${esc(o)}</option>`).join("");
+    meSel.innerHTML = OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     meSel.value = me();
     meSel.addEventListener("change", () => localStorage.setItem("sp_me", meSel.value));
 
@@ -122,11 +123,11 @@
 
     // 폼 옵션
     $("#form-stage").innerHTML = STAGES.map((s) => `<option>${s}</option>`).join("");
-    $("#form-owner").innerHTML = `<option value=""></option>` + (CFG.OWNERS || []).map((o) => `<option>${esc(o)}</option>`).join("");
+    $("#form-owner").innerHTML = `<option value=""></option>` + OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     $("#channel-options").innerHTML = (CFG.CHANNELS || []).map((c) => `<option value="${esc(c)}">`).join("");
     $("#table-stage-filter").innerHTML += STAGES.map((s) => `<option>${s}</option>`).join("");
     ["#table-owner-filter", "#board-owner-filter"].forEach((sel) => {
-      $(sel).innerHTML += (CFG.OWNERS || []).map((o) => `<option>${esc(o)}</option>`).join("");
+      $(sel).innerHTML += OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     });
 
     // 필터 이벤트

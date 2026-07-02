@@ -8,7 +8,7 @@ window.APP_CONFIG = {
   TEAM_EMAIL: "team@wyyyes.app",
 
   // 담당자 선택 목록
-  OWNERS: ["Eric", "Ian", "Danny", "Derek", "Chance"],
+  OWNERS: ["Chance", "Danny", "Derek", "Eric", "Ian"],
 
   // 발굴 채널 선택 목록 (자유 입력도 가능)
   CHANNELS: ["인스타그램", "스마트스토어", "유튜브", "트위터/X", "네이버 카페", "오프라인", "지인 소개", "인바운드"],
