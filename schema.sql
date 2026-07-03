@@ -14,6 +14,8 @@ create table public.leads (
   contact_point text,
   contact_date date,
   category text,
+  business text check (business in ('사업자', '개인')),
+  region text,
   -- 딜러: 발굴→컨택→응답→협의→승인→판매 / 인플루언서: 발굴→컨택→응답→협의→계약→진행→완료
   stage text not null default '발굴' check (stage in ('발굴', '컨택', '응답', '협의', '승인', '판매', '계약', '진행', '완료', '보류', '제외')),
   nickname text,

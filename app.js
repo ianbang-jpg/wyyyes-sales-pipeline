@@ -60,6 +60,29 @@
   };
   const fmtNum = (n) => (n == null ? "" : Number(n).toLocaleString());
 
+  // 팔로워 구간 (드롭다운 선택, "이상"은 ↑로 표기)
+  const FOLLOWER_BUCKETS = [100, 500, 1000, 2000, 3000, 5000, 10000, 50000, 100000, 500000, 1000000];
+  const bucketName = (t) => (t >= 10000 ? `${t / 10000}만` : t.toLocaleString());
+  function followerLabel(n) {
+    if (n == null) return "";
+    let floor = null;
+    for (const t of FOLLOWER_BUCKETS) if (n >= t) floor = t;
+    return floor == null ? "100↓" : `${bucketName(floor)}↑`;
+  }
+  const followerFloor = (n) => {
+    if (n == null) return "";
+    let floor = "";
+    for (const t of FOLLOWER_BUCKETS) if (n >= t) floor = t;
+    return String(floor);
+  };
+  const followerOptions = (selectedVal) =>
+    `<option value=""></option>` + FOLLOWER_BUCKETS.map((t) =>
+      `<option value="${t}" ${String(t) === String(selectedVal) ? "selected" : ""}>${bucketName(t)}↑</option>`).join("");
+
+  // 온/오프라인 칩
+  const ctChip = (v) => (v ? `<span class="ct-chip ct-${v}">${v === "온라인" ? "온" : "오프"}</span>` : "");
+  const catChip = (v) => (v ? `<span class="cat-chip cat-${esc(v)}">${esc(v)}</span>` : "");
+
   // 채널 → 브랜드 심볼 (미등록 채널은 텍스트 그대로)
   function chIcon(channel) {
     const ic = CHANNEL_ICONS[channel];
@@ -150,13 +173,16 @@
     $("#form-category").innerHTML = `<option value=""></option>` + (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
     $("#channel-options").innerHTML = (CFG.CHANNELS || []).map((c) => `<option value="${esc(c)}">`).join("");
     $("#table-stage-filter").innerHTML += [...ALL_STAGES, ...CLOSED_STAGES].map((s) => `<option>${s}</option>`).join("");
-    $("#table-category-filter").innerHTML += (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
-    ["#table-owner-filter", "#board-owner-filter"].forEach((sel) => {
+    ["#table-category-filter", "#board-category-filter", "#dash-category-filter"].forEach((sel) => {
+      $(sel).innerHTML += (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
+    });
+    ["#table-owner-filter", "#board-owner-filter", "#dash-owner-filter"].forEach((sel) => {
       $(sel).innerHTML += OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     });
 
     // 필터 이벤트
-    ["#dash-type-filter", "#board-type-filter", "#board-owner-filter", "#board-show-closed",
+    ["#dash-type-filter", "#dash-owner-filter", "#dash-category-filter",
+     "#board-type-filter", "#board-owner-filter", "#board-category-filter", "#board-show-closed",
      "#table-search", "#table-type-filter", "#table-stage-filter", "#table-channel-filter",
      "#table-category-filter", "#table-owner-filter"]
       .forEach((sel) => $(sel).addEventListener("input", renderAll));
@@ -215,7 +241,10 @@
 
   function renderDashboard() {
     const typeF = $("#dash-type-filter").value;
-    const leads = state.leads.filter((l) => !typeF || l.type === typeF);
+    const ownerF = $("#dash-owner-filter").value;
+    const catF = $("#dash-category-filter").value;
+    const leads = state.leads.filter((l) =>
+      (!typeF || l.type === typeF) && (!ownerF || l.owner === ownerF) && (!catF || l.category === catF));
     const active = leads.filter((l) => !CLOSED_STAGES.includes(l.stage));
     const followup = active
       .filter((l) => Date.now() - new Date(l.updated_at).getTime() > 7 * 864e5)
@@ -306,11 +335,12 @@
   function renderBoard() {
     const typeF = $("#board-type-filter").value;
     const ownerF = $("#board-owner-filter").value;
+    const catF = $("#board-category-filter").value;
     const showClosed = $("#board-show-closed").checked;
     const flow = stagesFor($("#board-type-filter").value);
     const cols = showClosed ? [...flow, ...CLOSED_STAGES] : flow;
     const leads = state.leads.filter((l) =>
-      (!typeF || l.type === typeF) && (!ownerF || l.owner === ownerF));
+      (!typeF || l.type === typeF) && (!ownerF || l.owner === ownerF) && (!catF || l.category === catF));
 
     $("#board").innerHTML = cols.map((stage) => {
       const cards = leads.filter((l) => l.stage === stage);
@@ -329,8 +359,9 @@
                 </div>
                 <div class="lc-meta">
                   ${l.channel ? `<span>${chIcon(l.channel)}</span>` : ""}
-                  ${l.category ? `<span class="cat-chip">${esc(l.category)}</span>` : ""}
-                  ${l.followers ? `<span>👥 ${fmtNum(l.followers)}</span>` : ""}
+                  ${ctChip(l.channel_type)}
+                  ${catChip(l.category)}
+                  ${l.followers ? `<span>👥 ${followerLabel(l.followers)}</span>` : ""}
                   ${l.owner ? `<span>${esc(l.owner)}</span>` : ""}
                 </div>
                 ${l.notes ? `<div class="lc-notes">${esc(l.notes)}</div>` : ""}
@@ -386,7 +417,7 @@
       (!chF || l.channel === chF) &&
       (!catF || l.category === catF) &&
       (!ownerF || l.owner === ownerF) &&
-      (!q || [l.name, l.main_products, l.notes, l.shop_detail, l.nickname].join(" ").toLowerCase().includes(q))
+      (!q || [l.name, l.main_products, l.notes, l.region, l.nickname].join(" ").toLowerCase().includes(q))
     );
 
     const { sortKey, sortDir } = state;
@@ -412,10 +443,11 @@
       <tr data-id="${l.id}">
         <td class="td-name">${esc(l.name)}</td>
         <td><span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span></td>
-        <td>${l.category ? `<span class="cat-chip">${esc(l.category)}</span>` : ""}</td>
+        <td>${catChip(l.category)}</td>
         <td><span class="stage-chip stage-${l.stage}">${l.stage}</span></td>
-        <td class="td-ch">${l.channel ? chIcon(l.channel) : ""}</td>
-        <td>${fmtNum(l.followers)}</td>
+        <td class="td-ch">${l.channel ? chIcon(l.channel) : ""} ${ctChip(l.channel_type)}</td>
+        <td>${followerLabel(l.followers)}</td>
+        <td>${esc(l.region || "")}</td>
         <td>${esc(l.main_products || "")}</td>
         <td class="td-notes" title="${esc(l.notes || "")}">${esc(l.notes || "")}</td>
         <td>${fmtDate(l.contact_date)}</td>
@@ -439,12 +471,14 @@
       if (!l) return;
       form.elements["type"].value = l.type;
       toggleTypeFields(); // 유형에 맞는 단계 옵션 구성 후 값 주입
-      for (const key of ["stage", "category", "name", "link", "channel", "channel_type", "followers",
-        "shop_detail", "main_products", "contact_point", "contact_date", "nickname", "approved_at", "notes", "owner"]) {
+      for (const key of ["stage", "category", "name", "link", "channel", "channel_type", "business", "region",
+        "main_products", "contact_point", "contact_date", "nickname", "approved_at", "notes", "owner"]) {
         if (form.elements[key]) form.elements[key].value = l[key] ?? "";
       }
+      form.elements["followers"].innerHTML = followerOptions(followerFloor(l.followers));
       form.elements["extra_collab_type"].value = l.extra?.collab_type ?? "";
     } else {
+      form.elements["followers"].innerHTML = followerOptions("");
       form.elements["owner"].value = me();
       toggleTypeFields();
     }
@@ -469,7 +503,8 @@
       channel: f["channel"].value.trim() || null,
       channel_type: f["channel_type"].value,
       followers: f["followers"].value ? Number(f["followers"].value) : null,
-      shop_detail: f["shop_detail"].value.trim() || null,
+      business: f["business"].value || null,
+      region: f["region"].value.trim() || null,
       main_products: f["main_products"].value.trim() || null,
       contact_point: f["contact_point"].value.trim() || null,
       contact_date: f["contact_date"].value || null,
@@ -512,7 +547,7 @@
   const FIELD_LABELS = {
     stage: "단계", category: "카테고리", link: "링크", channel: "발굴 채널",
     channel_type: "온/오프라인", followers: "팔로워", shop_detail: "샵 상세",
-    main_products: "주요 상품", contact_point: "컨택포인트", contact_date: "컨택일",
+    business: "사업자 여부", region: "지역", main_products: "주요 상품", contact_point: "컨택포인트", contact_date: "컨택일",
     collab_type: "협업 유형", nickname: "닉네임", approved_at: "승인일",
     owner: "담당자", notes: "비고", name: "이름",
   };
@@ -538,7 +573,10 @@
       case "channel":
         return `<input data-field="channel" list="channel-options" value="${val}">`;
       case "followers":
-        return `<input data-field="followers" type="number" min="0" value="${val}">`;
+        return `<select data-field="followers">${followerOptions(followerFloor(l.followers))}</select>`;
+      case "business":
+        return `<select data-field="business"><option value=""></option>${["사업자", "개인"].map((b) =>
+          `<option ${b === raw ? "selected" : ""}>${b}</option>`).join("")}</select>`;
       case "contact_date": case "approved_at":
         return `<input data-field="${key}" type="date" value="${val}">`;
       case "link":
@@ -558,8 +596,7 @@
     $("#drawer-type").innerHTML = `<span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span>`;
     $("#drawer-name-input").value = l.name;
     const keys = ["stage", "category", "owner", "link", "channel", "channel_type", "followers",
-      ...(l.type === "dealer" ? ["shop_detail"] : []),
-      "main_products", "contact_point", "contact_date",
+      "business", "region", "main_products", "contact_point", "contact_date",
       ...(l.type === "influencer" ? ["collab_type"] : []),
       "nickname", "approved_at", "notes"];
     $("#drawer-info").innerHTML =
@@ -628,10 +665,10 @@
 
   // ── CSV 내보내기 ──
   function exportCsv() {
-    const cols = ["type", "name", "category", "stage", "channel", "channel_type", "followers", "shop_detail",
-      "main_products", "contact_point", "contact_date", "nickname", "approved_at", "owner", "notes", "link", "created_at"];
-    const header = ["유형", "이름", "카테고리", "단계", "발굴채널", "온오프", "팔로워", "샵상세", "주요상품",
-      "컨택포인트", "컨택일", "닉네임", "승인일", "담당자", "비고", "링크", "등록일"];
+    const cols = ["type", "name", "category", "stage", "channel", "channel_type", "followers", "business", "region",
+      "shop_detail", "main_products", "contact_point", "contact_date", "nickname", "approved_at", "owner", "notes", "link", "created_at"];
+    const header = ["유형", "이름", "카테고리", "단계", "발굴채널", "온오프", "팔로워", "사업자", "지역",
+      "샵상세(구)", "주요상품", "컨택포인트", "컨택일", "닉네임", "승인일", "담당자", "비고", "링크", "등록일"];
     const rows = state.leads.map((l) =>
       cols.map((c) => {
         let v = c === "type" ? TYPE_LABEL[l.type] : l[c];

@@ -57,6 +57,8 @@
           <option value="dealer">딜러</option>
           <option value="influencer">인플루언서</option>
         </select>
+        <select id="dash-owner-filter"><option value="">전체 담당자</option></select>
+        <select id="dash-category-filter"><option value="">전체 카테고리</option></select>
       </div>
       <section class="kpi-row" id="kpi-row"></section>
       <div class="dash-grid">
@@ -96,6 +98,7 @@
           <option value="influencer">인플루언서</option>
         </select>
         <select id="board-owner-filter"><option value="">전체 담당자</option></select>
+        <select id="board-category-filter"><option value="">전체 카테고리</option></select>
         <label class="chk"><input type="checkbox" id="board-show-closed"> 보류/제외 표시</label>
       </div>
       <div id="board" class="board"></div>
@@ -126,6 +129,7 @@
               <th data-sort="stage">단계</th>
               <th data-sort="channel">채널</th>
               <th data-sort="followers">팔로워</th>
+              <th data-sort="region">지역</th>
               <th data-sort="main_products">주요 상품</th>
               <th data-sort="notes">비고</th>
               <th data-sort="contact_date">컨택일</th>
@@ -177,13 +181,20 @@
             </select>
           </label>
           <label>팔로워/관심고객
-            <input name="followers" type="number" min="0">
+            <select name="followers" id="form-followers"></select>
           </label>
           <label>컨택포인트
             <input name="contact_point" placeholder="예: 인스타그램 DM, 이메일">
           </label>
-          <label class="span2 dealer-only">샵 상세
-            <input name="shop_detail" placeholder="예: 홍대 오프라인 샵 / 스마트스토어">
+          <label>사업자 여부
+            <select name="business">
+              <option value=""></option>
+              <option value="사업자">사업자</option>
+              <option value="개인">개인</option>
+            </select>
+          </label>
+          <label>지역
+            <input name="region" placeholder="예: 홍대, 김포">
           </label>
           <label class="span2">주요 상품 / 콘텐츠
             <input name="main_products" placeholder="예: 애니굿즈/피규어/제일복권">

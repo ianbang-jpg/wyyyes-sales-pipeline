@@ -266,13 +266,29 @@ td.td-name { font-weight: 600; }
 .stage-보류 { background: #f5f0dc; color: #806415; }
 .stage-제외 { background: #ffe4e4; color: #b42121; }
 
-/* 카테고리 칩 */
+/* 카테고리 칩 (카테고리별 색상) */
 .cat-chip {
   font-size: 11px; font-weight: 600;
   padding: 2px 8px; border-radius: 999px;
   background: #f0f1f5; color: #5a6377;
   white-space: nowrap;
 }
+.cat-피규어 { background: #e4efff; color: #1a56c4; }
+.cat-포켓몬카드 { background: #fff1c2; color: #8a6400; }
+.cat-트레이딩카드 { background: #eee7ff; color: #6d3bd6; }
+.cat-스포츠카드 { background: #dcf5e4; color: #15803c; }
+.cat-아트토이 { background: #ffe9f2; color: #c9186e; }
+.cat-레고 { background: #ffe4e0; color: #c62f22; }
+.cat-기타 { background: #f0f1f5; color: #5a6377; }
+
+/* 온/오프라인 칩 */
+.ct-chip {
+  font-size: 10px; font-weight: 700;
+  padding: 2px 6px; border-radius: 5px;
+  white-space: nowrap;
+}
+.ct-온라인 { background: #e0f3ff; color: #0369a1; }
+.ct-오프라인 { background: #ffedd0; color: #92610c; }
 
 /* 카드 메모 미리보기 */
 .lc-notes {
