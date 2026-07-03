@@ -1,9 +1,16 @@
 /* WYYYES GTM 세일즈 파이프라인 SPA */
 (() => {
   const CFG = window.APP_CONFIG || {};
-  const STAGES = ["발굴", "컨택", "응답확인", "협의중", "온보딩", "승인", "보류", "제외"];
-  const OPEN_STAGES = ["발굴", "컨택", "응답확인", "협의중", "온보딩", "승인"];
-  const CONTACTING = ["컨택", "응답확인", "협의중", "온보딩"];
+  // 유형별 파이프라인 단계 (전체 보기는 합집합)
+  const STAGE_FLOW = {
+    dealer: ["발굴", "컨택", "응답", "협의", "승인", "판매"],
+    influencer: ["발굴", "컨택", "응답", "협의", "계약", "진행", "완료"],
+  };
+  const ALL_STAGES = ["발굴", "컨택", "응답", "협의", "승인", "계약", "판매", "진행", "완료"];
+  const CLOSED_STAGES = ["보류", "제외"];
+  const IN_PROGRESS = ["컨택", "응답", "협의", "승인", "계약", "진행"];
+  const DONE_STAGES = ["판매", "완료"];
+  const stagesFor = (type) => STAGE_FLOW[type] || ALL_STAGES;
   const TYPE_LABEL = { dealer: "딜러", influencer: "인플루언서" };
   const OWNERS = [...(CFG.OWNERS || [])].sort((a, b) => a.localeCompare(b));
 
@@ -138,18 +145,20 @@
       })
     );
 
-    // 폼 옵션
-    $("#form-stage").innerHTML = STAGES.map((s) => `<option>${s}</option>`).join("");
+    // 폼 옵션 (단계는 유형에 따라 toggleTypeFields에서 채움)
     $("#form-owner").innerHTML = `<option value=""></option>` + OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
+    $("#form-category").innerHTML = `<option value=""></option>` + (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
     $("#channel-options").innerHTML = (CFG.CHANNELS || []).map((c) => `<option value="${esc(c)}">`).join("");
-    $("#table-stage-filter").innerHTML += STAGES.map((s) => `<option>${s}</option>`).join("");
+    $("#table-stage-filter").innerHTML += [...ALL_STAGES, ...CLOSED_STAGES].map((s) => `<option>${s}</option>`).join("");
+    $("#table-category-filter").innerHTML += (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
     ["#table-owner-filter", "#board-owner-filter"].forEach((sel) => {
       $(sel).innerHTML += OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     });
 
     // 필터 이벤트
     ["#dash-type-filter", "#board-type-filter", "#board-owner-filter", "#board-show-closed",
-     "#table-search", "#table-type-filter", "#table-stage-filter", "#table-channel-filter", "#table-owner-filter"]
+     "#table-search", "#table-type-filter", "#table-stage-filter", "#table-channel-filter",
+     "#table-category-filter", "#table-owner-filter"]
       .forEach((sel) => $(sel).addEventListener("input", renderAll));
 
     // 유형별 필드 토글
@@ -179,9 +188,16 @@
   }
 
   function toggleTypeFields() {
-    const isInf = $("#form-type").value === "influencer";
+    const type = $("#form-type").value;
+    const isInf = type === "influencer";
     $$(".influencer-only").forEach((el) => el.classList.toggle("hidden", !isInf));
     $$(".dealer-only").forEach((el) => el.classList.toggle("hidden", isInf));
+    // 유형에 맞는 단계 옵션으로 갱신 (가능하면 현재 값 유지)
+    const sel = $("#form-stage");
+    const cur = sel.value;
+    const opts = [...stagesFor(type), ...CLOSED_STAGES];
+    sel.innerHTML = opts.map((s) => `<option>${s}</option>`).join("");
+    sel.value = opts.includes(cur) ? cur : "발굴";
   }
 
   // ── 렌더링 ──
@@ -194,14 +210,18 @@
   function renderDashboard() {
     const typeF = $("#dash-type-filter").value;
     const leads = state.leads.filter((l) => !typeF || l.type === typeF);
-    const active = leads.filter((l) => OPEN_STAGES.includes(l.stage));
+    const active = leads.filter((l) => !CLOSED_STAGES.includes(l.stage));
+    const followup = active
+      .filter((l) => Date.now() - new Date(l.updated_at).getTime() > 7 * 864e5)
+      .sort((a, b) => a.updated_at.localeCompare(b.updated_at));
 
     const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
     const kpis = [
       { label: "전체 (제외 포함)", value: leads.length, sub: `활성 ${active.length}건` },
       { label: "이번 주 신규", value: leads.filter((l) => l.created_at >= weekAgo).length, sub: "최근 7일 등록" },
-      { label: "컨택 진행중", value: leads.filter((l) => CONTACTING.includes(l.stage)).length, sub: "컨택~온보딩 단계" },
-      { label: "승인 완료", value: leads.filter((l) => l.stage === "승인").length, sub: "누적" },
+      { label: "진행중", value: leads.filter((l) => IN_PROGRESS.includes(l.stage)).length, sub: "컨택~실행 단계" },
+      { label: "성사", value: leads.filter((l) => DONE_STAGES.includes(l.stage)).length, sub: "판매·완료 누적" },
+      { label: "팔로업 필요", value: followup.length, sub: "7일+ 업데이트 없음" },
     ];
     $("#kpi-row").innerHTML = kpis.map((k) => `
       <div class="kpi">
@@ -210,17 +230,39 @@
         <div class="kpi-sub">${k.sub}</div>
       </div>`).join("");
 
-    // 퍼널
-    const maxCnt = Math.max(1, ...STAGES.map((s) => leads.filter((l) => l.stage === s).length));
-    $("#funnel").innerHTML = STAGES.map((s) => {
+    // 퍼널 (유형 선택 시 해당 흐름 + 누적 도달률)
+    const flow = typeF ? stagesFor(typeF) : ALL_STAGES;
+    const funnelStages = [...flow, ...CLOSED_STAGES];
+    const positioned = leads.filter((l) => flow.includes(l.stage));
+    const reach = flow.map((_, i) => positioned.filter((l) => flow.indexOf(l.stage) >= i).length);
+    const maxCnt = Math.max(1, ...funnelStages.map((s) => leads.filter((l) => l.stage === s).length));
+    $("#funnel").innerHTML = funnelStages.map((s) => {
       const cnt = leads.filter((l) => l.stage === s).length;
-      return barRow(s, cnt, maxCnt, `stage-${s}`);
+      const i = flow.indexOf(s);
+      let suffix = "";
+      if (typeF && i > 0 && reach[0] > 0) {
+        suffix = ` <span class="bar-pct" title="누적 도달 ${reach[i]}건">${Math.round((reach[i] / reach[0]) * 100)}%</span>`;
+      }
+      return barRow(`<span class="stage-chip stage-${s}">${s}</span>`, cnt, maxCnt, suffix);
     }).join("");
 
-    // 담당자별
+    // 담당자별 / 카테고리별 / 채널별
     $("#by-owner").innerHTML = groupBars(active, (l) => l.owner || "(미지정)");
-    // 채널별 (브랜드 심볼 표시)
+    $("#by-category").innerHTML = groupBars(active, (l) => l.category || "(미지정)");
     $("#by-channel").innerHTML = groupBars(active, (l) => l.channel || "(미지정)", chIconLabel);
+
+    // 팔로업 필요 리스트 (오래된 순)
+    $("#followup-list").innerHTML = followup.slice(0, 8).map((l) => {
+      const days = Math.floor((Date.now() - new Date(l.updated_at).getTime()) / 864e5);
+      return `
+        <div class="fu-item" data-id="${l.id}">
+          <span class="fu-name">${esc(l.name)}</span>
+          <span class="stage-chip stage-${l.stage}">${l.stage}</span>
+          <span class="fu-days">${days}일 전</span>
+        </div>`;
+    }).join("") || `<span class="muted">7일 이상 방치된 건이 없어요 👍</span>`;
+    $$("#followup-list .fu-item").forEach((el) =>
+      el.addEventListener("click", () => openDrawer(el.dataset.id)));
 
     // 최근 활동
     sb.from("activities").select("*, leads(name)").order("created_at", { ascending: false }).limit(12)
@@ -245,12 +287,12 @@
   }
 
   // labelHtml은 호출부에서 이스케이프/생성된 HTML
-  function barRow(labelHtml, cnt, max) {
+  function barRow(labelHtml, cnt, max, suffix = "") {
     return `
       <div class="bar-row">
         <div class="bar-label">${labelHtml}</div>
         <div class="bar-track"><div class="bar-fill" style="width:${(cnt / max) * 100}%"></div></div>
-        <div class="bar-count">${cnt}</div>
+        <div class="bar-count">${cnt}${suffix}</div>
       </div>`;
   }
 
@@ -259,7 +301,8 @@
     const typeF = $("#board-type-filter").value;
     const ownerF = $("#board-owner-filter").value;
     const showClosed = $("#board-show-closed").checked;
-    const cols = showClosed ? STAGES : OPEN_STAGES;
+    const flow = stagesFor($("#board-type-filter").value);
+    const cols = showClosed ? [...flow, ...CLOSED_STAGES] : flow;
     const leads = state.leads.filter((l) =>
       (!typeF || l.type === typeF) && (!ownerF || l.owner === ownerF));
 
@@ -280,9 +323,11 @@
                 </div>
                 <div class="lc-meta">
                   ${l.channel ? `<span>${chIcon(l.channel)}</span>` : ""}
+                  ${l.category ? `<span class="cat-chip">${esc(l.category)}</span>` : ""}
                   ${l.followers ? `<span>👥 ${fmtNum(l.followers)}</span>` : ""}
                   ${l.owner ? `<span>${esc(l.owner)}</span>` : ""}
                 </div>
+                ${l.notes ? `<div class="lc-notes">${esc(l.notes)}</div>` : ""}
               </div>`).join("")}
           </div>
         </div>`;
@@ -320,6 +365,7 @@
     const typeF = $("#table-type-filter").value;
     const stageF = $("#table-stage-filter").value;
     const chF = $("#table-channel-filter").value;
+    const catF = $("#table-category-filter").value;
     const ownerF = $("#table-owner-filter").value;
 
     // 채널 필터 옵션 동기화 (현재 데이터 기준)
@@ -332,6 +378,7 @@
       (!typeF || l.type === typeF) &&
       (!stageF || l.stage === stageF) &&
       (!chF || l.channel === chF) &&
+      (!catF || l.category === catF) &&
       (!ownerF || l.owner === ownerF) &&
       (!q || [l.name, l.main_products, l.notes, l.shop_detail, l.nickname].join(" ").toLowerCase().includes(q))
     );
@@ -339,7 +386,10 @@
     const { sortKey, sortDir } = state;
     rows.sort((a, b) => {
       let va = a[sortKey], vb = b[sortKey];
-      if (sortKey === "stage") { va = STAGES.indexOf(va); vb = STAGES.indexOf(vb); }
+      if (sortKey === "stage") {
+        const order = [...ALL_STAGES, ...CLOSED_STAGES];
+        va = order.indexOf(va); vb = order.indexOf(vb);
+      }
       if (va == null) return 1;
       if (vb == null) return -1;
       if (typeof va === "number") return sortDir === "asc" ? va - vb : vb - va;
@@ -356,10 +406,12 @@
       <tr data-id="${l.id}">
         <td class="td-name">${esc(l.name)}</td>
         <td><span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span></td>
+        <td>${l.category ? `<span class="cat-chip">${esc(l.category)}</span>` : ""}</td>
         <td><span class="stage-chip stage-${l.stage}">${l.stage}</span></td>
         <td class="td-ch">${l.channel ? chIcon(l.channel) : ""}</td>
         <td>${fmtNum(l.followers)}</td>
         <td>${esc(l.main_products || "")}</td>
+        <td class="td-notes" title="${esc(l.notes || "")}">${esc(l.notes || "")}</td>
         <td>${fmtDate(l.contact_date)}</td>
         <td>${esc(l.owner || "")}</td>
         <td class="muted">${fmtDate(l.updated_at)}</td>
@@ -379,15 +431,17 @@
     if (id) {
       const l = state.leads.find((x) => x.id === id);
       if (!l) return;
-      for (const key of ["type", "stage", "name", "link", "channel", "channel_type", "followers",
+      form.elements["type"].value = l.type;
+      toggleTypeFields(); // 유형에 맞는 단계 옵션 구성 후 값 주입
+      for (const key of ["stage", "category", "name", "link", "channel", "channel_type", "followers",
         "shop_detail", "main_products", "contact_point", "contact_date", "nickname", "approved_at", "notes", "owner"]) {
         if (form.elements[key]) form.elements[key].value = l[key] ?? "";
       }
       form.elements["extra_collab_type"].value = l.extra?.collab_type ?? "";
     } else {
       form.elements["owner"].value = me();
+      toggleTypeFields();
     }
-    toggleTypeFields();
     $("#modal-backdrop").classList.remove("hidden");
     form.elements["name"].focus();
   }
@@ -403,6 +457,7 @@
     const payload = {
       type: f["type"].value,
       stage: f["stage"].value,
+      category: f["category"].value || null,
       name: f["name"].value.trim(),
       link: f["link"].value.trim() || null,
       channel: f["channel"].value.trim() || null,
@@ -454,6 +509,7 @@
     $("#drawer-name").innerHTML = `<span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span> ${esc(l.name)}`;
     const info = [
       ["단계", `<span class="stage-chip stage-${l.stage}">${l.stage}</span>`],
+      ["카테고리", esc(l.category)],
       ["링크", l.link ? `<a href="${esc(l.link)}" target="_blank" rel="noopener">${esc(l.link)}</a>` : ""],
       ["발굴 채널", chIconLabel(l.channel)],
       ["온/오프라인", esc(l.channel_type)],
@@ -503,9 +559,9 @@
 
   // ── CSV 내보내기 ──
   function exportCsv() {
-    const cols = ["type", "name", "stage", "channel", "channel_type", "followers", "shop_detail",
+    const cols = ["type", "name", "category", "stage", "channel", "channel_type", "followers", "shop_detail",
       "main_products", "contact_point", "contact_date", "nickname", "approved_at", "owner", "notes", "link", "created_at"];
-    const header = ["유형", "이름", "단계", "발굴채널", "온오프", "팔로워", "샵상세", "주요상품",
+    const header = ["유형", "이름", "카테고리", "단계", "발굴채널", "온오프", "팔로워", "샵상세", "주요상품",
       "컨택포인트", "컨택일", "닉네임", "승인일", "담당자", "비고", "링크", "등록일"];
     const rows = state.leads.map((l) =>
       cols.map((c) => {

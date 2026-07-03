@@ -65,8 +65,16 @@
           <div id="funnel"></div>
         </section>
         <section class="card">
+          <h2>팔로업 필요 (7일+ 업데이트 없음)</h2>
+          <div id="followup-list" class="fu-list"></div>
+        </section>
+        <section class="card">
           <h2>담당자별 현황</h2>
           <div id="by-owner"></div>
+        </section>
+        <section class="card">
+          <h2>카테고리별</h2>
+          <div id="by-category"></div>
         </section>
         <section class="card">
           <h2>발굴 채널별</h2>
@@ -103,6 +111,7 @@
           <option value="influencer">인플루언서</option>
         </select>
         <select id="table-stage-filter"><option value="">전체 단계</option></select>
+        <select id="table-category-filter"><option value="">전체 카테고리</option></select>
         <select id="table-channel-filter"><option value="">전체 채널</option></select>
         <select id="table-owner-filter"><option value="">전체 담당자</option></select>
         <span id="table-count" class="muted"></span>
@@ -113,10 +122,12 @@
             <tr>
               <th data-sort="name">이름</th>
               <th data-sort="type">유형</th>
+              <th data-sort="category">카테고리</th>
               <th data-sort="stage">단계</th>
               <th data-sort="channel">채널</th>
               <th data-sort="followers">팔로워</th>
               <th data-sort="main_products">주요 상품</th>
+              <th data-sort="notes">비고</th>
               <th data-sort="contact_date">컨택일</th>
               <th data-sort="owner">담당자</th>
               <th data-sort="updated_at">수정일</th>
@@ -143,6 +154,12 @@
           <label>단계*
             <select name="stage" id="form-stage"></select>
           </label>
+          <label>카테고리
+            <select name="category" id="form-category"></select>
+          </label>
+          <label>담당자
+            <select name="owner" id="form-owner"></select>
+          </label>
           <label class="span2">이름 (셀러/인플루언서명)*
             <input name="name" required>
           </label>
@@ -162,17 +179,14 @@
           <label>팔로워/관심고객
             <input name="followers" type="number" min="0">
           </label>
-          <label>담당자
-            <select name="owner" id="form-owner"></select>
+          <label>컨택포인트
+            <input name="contact_point" placeholder="예: 인스타그램 DM, 이메일">
           </label>
           <label class="span2 dealer-only">샵 상세
             <input name="shop_detail" placeholder="예: 홍대 오프라인 샵 / 스마트스토어">
           </label>
           <label class="span2">주요 상품 / 콘텐츠
             <input name="main_products" placeholder="예: 애니굿즈/피규어/제일복권">
-          </label>
-          <label>컨택포인트
-            <input name="contact_point" placeholder="예: 인스타그램 DM, 이메일">
           </label>
           <label>컨택일
             <input name="contact_date" type="date">

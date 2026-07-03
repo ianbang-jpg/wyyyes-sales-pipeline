@@ -256,12 +256,59 @@ td.td-name { font-weight: 600; }
 /* 단계별 색상 */
 .stage-발굴 { background: #eef0f6; color: #5a6377; }
 .stage-컨택 { background: #e4f0ff; color: #1861c9; }
-.stage-응답확인 { background: #e0f6ff; color: #0e7a9e; }
-.stage-협의중 { background: #fff3d6; color: #9a6b00; }
-.stage-온보딩 { background: #f0e8ff; color: #6d3bd6; }
-.stage-승인 { background: #dcf5e4; color: #15803c; }
+.stage-응답 { background: #e0f6ff; color: #0e7a9e; }
+.stage-협의 { background: #fff3d6; color: #9a6b00; }
+.stage-승인 { background: #f0e8ff; color: #6d3bd6; }
+.stage-계약 { background: #e5e9ff; color: #3949ab; }
+.stage-판매 { background: #dcf5e4; color: #15803c; }
+.stage-진행 { background: #ffedd9; color: #b45a09; }
+.stage-완료 { background: #d3f2df; color: #0d6a32; }
 .stage-보류 { background: #f5f0dc; color: #806415; }
 .stage-제외 { background: #ffe4e4; color: #b42121; }
+
+/* 카테고리 칩 */
+.cat-chip {
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+  background: #f0f1f5; color: #5a6377;
+  white-space: nowrap;
+}
+
+/* 카드 메모 미리보기 */
+.lc-notes {
+  margin-top: 7px; padding-top: 7px;
+  border-top: 1px dashed var(--border);
+  color: var(--muted); font-size: 12px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 테이블 비고 (말줄임) */
+td.td-notes {
+  max-width: 220px;
+  overflow: hidden; text-overflow: ellipsis;
+  color: var(--muted);
+}
+
+/* 팔로업 리스트 */
+.fu-list { display: flex; flex-direction: column; gap: 6px; }
+.fu-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border); border-radius: 8px;
+  cursor: pointer;
+}
+.fu-item:hover { background: #f4f5f9; }
+.fu-item .fu-name { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fu-item .fu-days { color: var(--primary); font-size: 12px; font-weight: 700; flex-shrink: 0; }
+
+/* 퍼널 전환율 */
+.bar-count { width: auto; min-width: 40px; white-space: nowrap; }
+.bar-pct { color: var(--muted); font-size: 11px; font-weight: 500; }
+.bar-label .stage-chip { font-size: 11px; }
 
 /* ── 모달 ── */
 .modal-backdrop, .drawer-backdrop {

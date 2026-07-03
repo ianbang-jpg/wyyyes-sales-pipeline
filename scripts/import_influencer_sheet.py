@@ -9,8 +9,8 @@
 컬럼: NO., 전달일, 상태, 채널, 채널명, 링크, 팔로워수, 이메일, 포인트,
       연락, 응답, 계획 단가, 실제 단가, 협업 관련 특이사항, 응낙 여부, 계약 체결 여부
 
-단계 매핑(우선순위): 상태=제외 → 제외 / 계약 체결 → 승인 / 응낙 → 온보딩
-                  / 응답 있음 → 응답확인 / 연락 있음 → 컨택 / 그 외 → 발굴
+단계 매핑(우선순위): 상태=제외 → 제외 / 계약 체결 → 진행 / 응낙 → 계약
+                  / 응답 있음 → 응답 / 연락 있음 → 컨택 / 그 외 → 발굴
 """
 import argparse
 import json
@@ -51,7 +51,7 @@ def filled(v):
     return v is not None and str(v).strip() not in ("", ".")
 
 
-def rows_from_sheet(ws, owner, collab_type):
+def rows_from_sheet(ws, owner, collab_type, args_category=None):
     headers = [str(c.value).strip() if c.value else "" for c in ws[2]]
     idx = {h: i for i, h in enumerate(headers)}
     out = []
@@ -69,11 +69,11 @@ def rows_from_sheet(ws, owner, collab_type):
         if str(get("상태") or "").strip() == "제외":
             stage = "제외"
         elif filled(get("계약 체결 여부")):
-            stage = "승인"
+            stage = "진행"
         elif filled(get("응낙 여부")):
-            stage = "온보딩"
+            stage = "계약"
         elif filled(get("응답")):
-            stage = "응답확인"
+            stage = "응답"
         elif filled(get("연락")):
             stage = "컨택"
         else:
@@ -95,6 +95,7 @@ def rows_from_sheet(ws, owner, collab_type):
             "followers": parse_followers(get("팔로워수")),
             "contact_point": str(get("이메일")).strip() if filled(get("이메일")) else None,
             "contact_date": parse_korean_date(get("연락")),
+            "category": args_category,
             "stage": stage,
             "owner": owner,
             "notes": "\n".join(notes_parts) or None,
@@ -108,6 +109,7 @@ def main():
     ap.add_argument("xlsx")
     ap.add_argument("--owner", default="Danny")
     ap.add_argument("--collab", default="TCG 릴스 협업")
+    ap.add_argument("--category", default=None)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -117,7 +119,7 @@ def main():
         sys.exit("SUPABASE_URL / SUPABASE_KEY 환경변수를 설정해주세요.")
 
     wb = openpyxl.load_workbook(args.xlsx, data_only=True)
-    leads = rows_from_sheet(wb.worksheets[0], args.owner, args.collab)
+    leads = rows_from_sheet(wb.worksheets[0], args.owner, args.collab, args.category)
 
     from collections import Counter
     print(f"파싱 완료: {len(leads)}건")

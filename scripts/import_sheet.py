@@ -5,7 +5,7 @@
   SUPABASE_URL=https://xxx.supabase.co SUPABASE_KEY=<service_role 또는 로그인 토큰> \
     python3 import_sheet.py <시트.xlsx> [--owner Eric] [--dry-run]
 
-단계 매핑: 승인 여부 O → 승인 / 확인 여부 O → 응답확인 / 컨택 여부 O → 컨택
+단계 매핑: 승인 여부 O → 승인 / 확인 여부 O → 응답 / 컨택 여부 O → 컨택
           제외 O → 제외 / 그 외 → 발굴
 """
 import argparse
@@ -53,7 +53,7 @@ def checked(v):
     return str(v).strip().upper() == "O"
 
 
-def rows_from_sheet(ws, channel_type, owner):
+def rows_from_sheet(ws, channel_type, owner, category):
     headers = [str(c.value).strip() if c.value else "" for c in ws[1]]
     idx = {h: i for i, h in enumerate(headers)}
     out = []
@@ -63,7 +63,7 @@ def rows_from_sheet(ws, channel_type, owner):
         name = row[idx.get("셀러명(링크)", 1)]
         if not name or no == "예시":
             continue
-        lead = {"type": "dealer", "channel_type": channel_type, "owner": owner, "extra": {}}
+        lead = {"type": "dealer", "channel_type": channel_type, "owner": owner, "category": category, "extra": {}}
         for h, key in HEADER_MAP.items():
             if h not in idx:
                 continue
@@ -91,7 +91,7 @@ def rows_from_sheet(ws, channel_type, owner):
         elif checked(get("승인 여부")):
             lead["stage"] = "승인"
         elif checked(get("확인 여부")):
-            lead["stage"] = "응답확인"
+            lead["stage"] = "응답"
         elif checked(get("컨택 여부")):
             lead["stage"] = "컨택"
         else:
@@ -110,6 +110,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("xlsx")
     ap.add_argument("--owner", default="Eric")
+    ap.add_argument("--category", default="피규어")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -122,7 +123,7 @@ def main():
     leads = []
     for sheet_name, channel_type in (("온라인", "온라인"), ("오프라인", "오프라인")):
         if sheet_name in wb.sheetnames:
-            leads += rows_from_sheet(wb[sheet_name], channel_type, args.owner)
+            leads += rows_from_sheet(wb[sheet_name], channel_type, args.owner, args.category)
 
     print(f"파싱 완료: {len(leads)}건")
     from collections import Counter
