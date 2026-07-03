@@ -321,6 +321,19 @@ td.td-notes {
 .fu-item .fu-name { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fu-item .fu-days { color: var(--primary); font-size: 12px; font-weight: 700; flex-shrink: 0; }
 
+/* 주간 비교 / 기간별 활동 표 */
+.cmp-table { width: 100%; border-collapse: collapse; }
+.cmp-table th, .cmp-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.cmp-table th { font-size: 11px; color: var(--muted); font-weight: 600; position: static; cursor: default; }
+.cmp-table td:first-child { text-align: left; font-size: 13px; }
+.cmp-table tbody tr { cursor: default; }
+.cmp-table tbody tr:hover { background: none; }
+.cmp-table .cmp-cur { font-weight: 800; font-size: 15px; }
+.delta { font-size: 12px; font-weight: 700; color: var(--muted); }
+.delta.up { color: #15803c; }
+.delta.down { color: var(--primary); }
+.cmp-note { font-size: 11px; margin: 10px 0 0; }
+
 /* 퍼널 전환율 */
 .bar-count { width: auto; min-width: 40px; white-space: nowrap; }
 .bar-pct { color: var(--muted); font-size: 11px; font-weight: 500; }

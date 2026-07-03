@@ -250,10 +250,18 @@
       .filter((l) => Date.now() - new Date(l.updated_at).getTime() > 7 * 864e5)
       .sort((a, b) => a.updated_at.localeCompare(b.updated_at));
 
-    const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
+    // 기간 경계 (주 시작 = 월요일)
+    const now = new Date();
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(dayStart);
+    weekStart.setDate(dayStart.getDate() - ((dayStart.getDay() + 6) % 7));
+    const prevWeekStart = new Date(weekStart);
+    prevWeekStart.setDate(weekStart.getDate() - 7);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
     const kpis = [
       { label: "전체 (제외 포함)", value: leads.length, sub: `활성 ${active.length}건` },
-      { label: "이번 주 신규", value: leads.filter((l) => l.created_at >= weekAgo).length, sub: "최근 7일 등록" },
+      { label: "이번 주 신규", value: leads.filter((l) => new Date(l.created_at) >= weekStart).length, sub: "월요일 기준" },
       { label: "진행중", value: leads.filter((l) => IN_PROGRESS.includes(l.stage)).length, sub: "컨택~실행 단계" },
       { label: "성사", value: leads.filter((l) => DONE_STAGES.includes(l.stage)).length, sub: "판매·완료 누적" },
       { label: "팔로업 필요", value: followup.length, sub: "7일+ 업데이트 없음" },
@@ -286,6 +294,9 @@
     $("#by-category").innerHTML = groupBars(active, (l) => l.category || "(미지정)");
     $("#by-channel").innerHTML = groupBars(active, (l) => l.channel || "(미지정)", chIconLabel);
 
+    // 주간 비교 / 기간별 활동 (히스토리 로그 기반)
+    renderPeriodSections(leads, { dayStart, weekStart, prevWeekStart, monthStart });
+
     // 팔로업 필요 리스트 (오래된 순)
     $("#followup-list").innerHTML = followup.slice(0, 8).map((l) => {
       const days = Math.floor((Date.now() - new Date(l.updated_at).getTime()) / 864e5);
@@ -313,6 +324,49 @@
       });
   }
 
+  // ── 주간 비교 + 일/주/월 활동 집계 ──
+  async function renderPeriodSections(leads, P) {
+    const leadIds = new Set(leads.map((l) => l.id));
+    const since = P.monthStart < P.prevWeekStart ? P.monthStart : P.prevWeekStart;
+    const { data } = await sb.from("activities")
+      .select("action, detail, created_at, lead_id")
+      .gte("created_at", since.toISOString());
+    const acts = (data || []).filter((a) => leadIds.has(a.lead_id));
+
+    const inRange = (d, from, to) => { const t = new Date(d); return t >= from && (!to || t < to); };
+    const metrics = (from, to) => ({
+      created: leads.filter((l) => inRange(l.created_at, from, to)).length,
+      moves: acts.filter((a) => a.action === "단계 변경" && inRange(a.created_at, from, to)).length,
+      done: acts.filter((a) => a.action === "단계 변경" && /→ (판매|완료)$/.test(a.detail || "") && inRange(a.created_at, from, to)).length,
+    });
+    const ROWS = [["created", "신규 등록"], ["moves", "단계 이동"], ["done", "성사 (판매·완료)"]];
+
+    // 전주 vs 이번 주
+    const prev = metrics(P.prevWeekStart, P.weekStart);
+    const cur = metrics(P.weekStart, null);
+    $("#week-compare").innerHTML = `
+      <table class="cmp-table">
+        <thead><tr><th></th><th>전주</th><th>이번 주</th><th>증감</th></tr></thead>
+        <tbody>${ROWS.map(([k, label]) => {
+          const d = cur[k] - prev[k];
+          const delta = d > 0 ? `<span class="delta up">▲ ${d}</span>`
+            : d < 0 ? `<span class="delta down">▼ ${-d}</span>` : `<span class="delta">–</span>`;
+          return `<tr><td>${label}</td><td>${prev[k]}</td><td class="cmp-cur">${cur[k]}</td><td>${delta}</td></tr>`;
+        }).join("")}</tbody>
+      </table>`;
+
+    // 일간 / 주간 / 월간
+    const day = metrics(P.dayStart, null);
+    const month = metrics(P.monthStart, null);
+    $("#period-stats").innerHTML = `
+      <table class="cmp-table">
+        <thead><tr><th></th><th>오늘</th><th>이번 주</th><th>이번 달</th></tr></thead>
+        <tbody>${ROWS.map(([k, label]) =>
+          `<tr><td>${label}</td><td>${day[k]}</td><td>${cur[k]}</td><td>${month[k]}</td></tr>`).join("")}</tbody>
+      </table>
+      <p class="muted cmp-note">단계 이동·성사는 이 툴에서 기록된 히스토리 기준</p>`;
+  }
+
   function groupBars(leads, keyFn, labelFn = esc) {
     const counts = {};
     leads.forEach((l) => { const k = keyFn(l); counts[k] = (counts[k] || 0) + 1; });
@@ -321,12 +375,20 @@
     return entries.map(([k, c]) => barRow(labelFn(k), c, max)).join("") || `<span class="muted">데이터 없음</span>`;
   }
 
+  // 게이지 색: 비율이 높을수록 초록, 낮을수록 무채색
+  function barColor(ratio) {
+    const sat = Math.round(6 + ratio * 60);
+    const light = Math.round(63 - ratio * 25);
+    return `hsl(146, ${sat}%, ${light}%)`;
+  }
+
   // labelHtml은 호출부에서 이스케이프/생성된 HTML
   function barRow(labelHtml, cnt, max, suffix = "") {
+    const ratio = max ? cnt / max : 0;
     return `
       <div class="bar-row">
         <div class="bar-label">${labelHtml}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${(cnt / max) * 100}%"></div></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${ratio * 100}%; background:${barColor(ratio)}"></div></div>
         <div class="bar-count">${cnt}${suffix}</div>
       </div>`;
   }
