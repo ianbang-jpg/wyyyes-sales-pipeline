@@ -169,11 +169,17 @@
     $("#export-btn").addEventListener("click", exportCsv);
     $("#modal-cancel").addEventListener("click", closeModal);
     $("#modal-backdrop").addEventListener("click", (e) => { if (e.target.id === "modal-backdrop") closeModal(); });
-    $("#modal-delete").addEventListener("click", deleteLead);
+    $("#modal-delete").addEventListener("click", () => deleteLead());
     $("#lead-form").addEventListener("submit", saveLead);
     $("#drawer-close").addEventListener("click", closeDrawer);
+    $("#drawer-info").addEventListener("change", onDrawerFieldChange);
+    $("#drawer-name-input").addEventListener("change", (e) => onDrawerFieldChange({ target: e.target }));
+    $("#drawer-name-input").dataset.field = "name";
+    $("#drawer-delete").addEventListener("click", () => {
+      const id = state.drawerId;
+      deleteLead(id).then((ok) => { if (ok) closeDrawer(); });
+    });
     $("#drawer-backdrop").addEventListener("click", (e) => { if (e.target.id === "drawer-backdrop") closeDrawer(); });
-    $("#drawer-edit").addEventListener("click", () => { const id = state.drawerId; closeDrawer(); openModal(id); });
     $("#memo-form").addEventListener("submit", addMemo);
 
     // 테이블 정렬
@@ -491,43 +497,106 @@
     loadLeads();
   }
 
-  async function deleteLead() {
-    const l = state.leads.find((x) => x.id === state.editingId);
-    if (!l || !confirm(`"${l.name}" 항목을 삭제할까요? 히스토리도 함께 삭제됩니다.`)) return;
-    const { error } = await sb.from("leads").delete().eq("id", state.editingId);
-    if (error) { toast("삭제 실패: " + error.message); return; }
+  async function deleteLead(id = state.editingId) {
+    const l = state.leads.find((x) => x.id === id);
+    if (!l || !confirm(`"${l.name}" 항목을 삭제할까요? 히스토리도 함께 삭제됩니다.`)) return false;
+    const { error } = await sb.from("leads").delete().eq("id", id);
+    if (error) { toast("삭제 실패: " + error.message); return false; }
     toast("삭제했어요");
     closeModal();
     loadLeads();
+    return true;
   }
 
-  // ── 상세 드로어 ──
+  // ── 상세 드로어 (인라인 편집) ──
+  const FIELD_LABELS = {
+    stage: "단계", category: "카테고리", link: "링크", channel: "발굴 채널",
+    channel_type: "온/오프라인", followers: "팔로워", shop_detail: "샵 상세",
+    main_products: "주요 상품", contact_point: "컨택포인트", contact_date: "컨택일",
+    collab_type: "협업 유형", nickname: "닉네임", approved_at: "승인일",
+    owner: "담당자", notes: "비고", name: "이름",
+  };
+
+  function drawerFieldHtml(l, key) {
+    const raw = key === "collab_type" ? (l.extra?.collab_type ?? "") : (l[key] ?? "");
+    const val = esc(raw);
+    switch (key) {
+      case "stage": {
+        const opts = [...stagesFor(l.type), ...CLOSED_STAGES];
+        return `<select data-field="stage">${opts.map((s) =>
+          `<option ${s === l.stage ? "selected" : ""}>${s}</option>`).join("")}</select>`;
+      }
+      case "category":
+        return `<select data-field="category"><option value=""></option>${(CFG.CATEGORIES || []).map((c) =>
+          `<option ${c === raw ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>`;
+      case "owner":
+        return `<select data-field="owner"><option value=""></option>${OWNERS.map((o) =>
+          `<option ${o === raw ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+      case "channel_type":
+        return `<select data-field="channel_type">${["온라인", "오프라인"].map((c) =>
+          `<option ${c === raw ? "selected" : ""}>${c}</option>`).join("")}</select>`;
+      case "channel":
+        return `<input data-field="channel" list="channel-options" value="${val}">`;
+      case "followers":
+        return `<input data-field="followers" type="number" min="0" value="${val}">`;
+      case "contact_date": case "approved_at":
+        return `<input data-field="${key}" type="date" value="${val}">`;
+      case "link":
+        return `<div class="link-field"><input data-field="link" type="url" value="${val}">` +
+          (raw ? `<a href="${val}" target="_blank" rel="noopener" title="새 탭에서 열기">↗</a>` : "") + `</div>`;
+      case "notes":
+        return `<textarea data-field="notes" rows="3">${val}</textarea>`;
+      default:
+        return `<input data-field="${key}" value="${val}">`;
+    }
+  }
+
   async function openDrawer(id) {
     const l = state.leads.find((x) => x.id === id);
     if (!l) return;
     state.drawerId = id;
-    $("#drawer-name").innerHTML = `<span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span> ${esc(l.name)}`;
-    const info = [
-      ["단계", `<span class="stage-chip stage-${l.stage}">${l.stage}</span>`],
-      ["카테고리", esc(l.category)],
-      ["링크", l.link ? `<a href="${esc(l.link)}" target="_blank" rel="noopener">${esc(l.link)}</a>` : ""],
-      ["발굴 채널", chIconLabel(l.channel)],
-      ["온/오프라인", esc(l.channel_type)],
-      ["팔로워", fmtNum(l.followers)],
-      ["샵 상세", esc(l.shop_detail)],
-      ["주요 상품", esc(l.main_products)],
-      ["컨택포인트", esc(l.contact_point)],
-      ["컨택일", fmtDate(l.contact_date)],
-      ["협업 유형", esc(l.extra?.collab_type)],
-      ["닉네임", esc(l.nickname)],
-      ["승인일", fmtDate(l.approved_at)],
-      ["담당자", esc(l.owner)],
-      ["비고", esc(l.notes)],
-      ["등록일", fmtDateTime(l.created_at)],
-    ].filter(([, v]) => v);
-    $("#drawer-info").innerHTML = info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    $("#drawer-type").innerHTML = `<span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span>`;
+    $("#drawer-name-input").value = l.name;
+    const keys = ["stage", "category", "owner", "link", "channel", "channel_type", "followers",
+      ...(l.type === "dealer" ? ["shop_detail"] : []),
+      "main_products", "contact_point", "contact_date",
+      ...(l.type === "influencer" ? ["collab_type"] : []),
+      "nickname", "approved_at", "notes"];
+    $("#drawer-info").innerHTML =
+      keys.map((k) => `<dt>${FIELD_LABELS[k]}</dt><dd>${drawerFieldHtml(l, k)}</dd>`).join("") +
+      `<dt>등록일</dt><dd class="muted">${fmtDateTime(l.created_at)}</dd>`;
     $("#drawer-backdrop").classList.remove("hidden");
     loadDrawerTimeline(id);
+  }
+
+  // 드로어 필드 변경 → 즉시 저장
+  async function onDrawerFieldChange(e) {
+    const el = e.target.closest("[data-field]");
+    if (!el || !state.drawerId) return;
+    const l = state.leads.find((x) => x.id === state.drawerId);
+    if (!l) return;
+    const key = el.dataset.field;
+    const val = el.value.trim();
+
+    let patch;
+    if (key === "collab_type") patch = { extra: { ...(l.extra || {}), collab_type: val || undefined } };
+    else if (key === "followers") patch = { followers: val ? Number(val) : null };
+    else if (key === "stage") { if (!val || val === l.stage) return; patch = { stage: val }; }
+    else if (key === "name") { if (!val) { el.value = l.name; return; } patch = { name: val }; }
+    else patch = { [key]: val || null };
+
+    const prevStage = l.stage;
+    const { error } = await sb.from("leads").update(patch).eq("id", l.id);
+    if (error) { toast("저장 실패: " + error.message); return; }
+    Object.assign(l, patch);
+    if (key === "stage") {
+      logActivity(l.id, "단계 변경", `${prevStage} → ${val}`).then(() => loadDrawerTimeline(l.id));
+      toast(`${l.name}: ${prevStage} → ${val}`);
+    } else {
+      logActivity(l.id, "정보 수정", FIELD_LABELS[key] || key).then(() => loadDrawerTimeline(l.id));
+      toast("저장했어요");
+    }
+    renderAll();
   }
 
   async function loadDrawerTimeline(id) {

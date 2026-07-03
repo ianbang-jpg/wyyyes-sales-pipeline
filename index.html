@@ -218,12 +218,11 @@
   <div id="drawer-backdrop" class="drawer-backdrop hidden">
     <aside class="drawer">
       <div class="drawer-head">
-        <h2 id="drawer-name"></h2>
-        <div>
-          <button id="drawer-edit">수정</button>
-          <button id="drawer-close">✕</button>
-        </div>
+        <span id="drawer-type"></span>
+        <input id="drawer-name-input" class="drawer-name-input" title="이름 (수정 가능)">
+        <button id="drawer-close">✕</button>
       </div>
+      <p class="drawer-hint muted">필드를 수정하면 바로 저장됩니다.</p>
       <div id="drawer-info" class="drawer-info"></div>
       <h3>히스토리</h3>
       <form id="memo-form" class="memo-form">
@@ -231,6 +230,9 @@
         <button type="submit">추가</button>
       </form>
       <div id="drawer-timeline" class="timeline"></div>
+      <div class="drawer-foot">
+        <button id="drawer-delete" class="danger">이 항목 삭제</button>
+      </div>
     </aside>
   </div>
 

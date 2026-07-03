@@ -345,11 +345,29 @@ td.td-notes {
   overflow-y: auto;
   box-shadow: -4px 0 20px rgba(20, 26, 60, 0.15);
 }
-.drawer-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.drawer-head h2 { margin: 0; font-size: 18px; }
-.drawer-info { display: grid; grid-template-columns: 100px 1fr; gap: 7px 12px; margin-bottom: 20px; }
+.drawer-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.drawer-name-input {
+  flex: 1;
+  font-size: 17px; font-weight: 700;
+  border: 1px solid transparent;
+  padding: 4px 8px; margin-left: -8px;
+}
+.drawer-name-input:hover { border-color: var(--border); }
+.drawer-hint { font-size: 11px; margin: 0 0 12px; }
+.drawer-info { display: grid; grid-template-columns: 92px 1fr; gap: 8px 12px; margin-bottom: 20px; align-items: center; }
 .drawer-info dt { color: var(--muted); font-size: 12px; }
 .drawer-info dd { margin: 0; font-size: 13px; word-break: break-all; }
+.drawer-info dd input, .drawer-info dd select, .drawer-info dd textarea {
+  padding: 5px 8px; font-size: 13px;
+}
+.drawer-info dd textarea { resize: vertical; }
+.link-field { display: flex; align-items: center; gap: 6px; }
+.link-field a { flex-shrink: 0; font-size: 15px; text-decoration: none; color: var(--primary); }
+.drawer-foot {
+  margin-top: 24px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+  text-align: right;
+}
 .drawer h3 { font-size: 13px; color: var(--muted); margin: 18px 0 10px; }
 .memo-form { display: flex; gap: 8px; margin-bottom: 14px; }
 
