@@ -145,7 +145,39 @@ td.td-ch { text-align: left; }
 .chk { display: flex; align-items: center; gap: 6px; color: var(--muted); }
 .chk input { width: auto; }
 
-/* 버튼식 필터 그룹 */
+/* ── 필터 툴바 ── */
+.filter-bar {
+  display: flex; align-items: center; gap: 8px 0;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 10px 16px;
+  margin-bottom: 18px;
+}
+.filter-bar input[type="search"] {
+  width: 220px; border-radius: 999px;
+  font-size: 13px; padding: 6px 14px;
+  background: var(--bg); border-color: transparent;
+  margin-right: 14px;
+}
+.filter-bar input[type="search"]:focus { background: #fff; border-color: var(--navy); }
+.filter-bar select {
+  width: auto; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  padding: 6px 28px 6px 12px;
+  color: var(--text);
+}
+.f-group { display: flex; align-items: center; gap: 8px; }
+.f-group + .f-group { margin-left: 16px; padding-left: 16px; border-left: 1px solid var(--border); }
+.f-label {
+  font-size: 11px; font-weight: 700;
+  color: #a0a7b8; letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+
+/* 버튼식 필터 그룹 (필 스타일) */
 .btn-group { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
 .btn-group button {
   padding: 5px 12px;
@@ -160,6 +192,25 @@ td.td-ch { text-align: left; }
   background: var(--navy);
   border-color: var(--navy);
   color: #fff;
+}
+
+/* 세그먼트 컨트롤 (유형처럼 옵션이 적고 고정일 때) */
+.btn-group.seg { gap: 0; flex-wrap: nowrap; }
+.btn-group.seg button { border-radius: 0; margin-left: -1px; position: relative; }
+.btn-group.seg button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+.btn-group.seg button:last-child { border-radius: 0 8px 8px 0; }
+.btn-group.seg button.active { z-index: 1; }
+
+/* 토글 버튼 */
+.toggle-btn {
+  padding: 5px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  color: var(--muted); background: var(--card);
+  border: 1px dashed var(--border);
+}
+.toggle-btn.active {
+  background: #f5f0dc; color: #806415;
+  border: 1px solid #d8c98a;
 }
 .card {
   background: var(--card);
@@ -233,6 +284,8 @@ td.td-ch { text-align: left; }
   cursor: grab;
   box-shadow: var(--shadow);
 }
+.lead-card { transition: box-shadow .15s, transform .15s; }
+.lead-card:hover { box-shadow: 0 4px 12px rgba(8, 10, 26, 0.12); transform: translateY(-1px); }
 .lead-card:active { cursor: grabbing; }
 .lead-card .lc-top { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .lead-card .lc-owner { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 600; }

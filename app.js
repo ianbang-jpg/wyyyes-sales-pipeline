@@ -228,6 +228,12 @@
     $$(".tab-btn").forEach((btn) =>
       btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
 
+    // 보류/제외 표시 토글
+    $("#board-show-closed").addEventListener("click", (e) => {
+      e.currentTarget.classList.toggle("active");
+      renderAll();
+    });
+
     // 내 전용 링크 복사
     $("#my-link-btn").addEventListener("click", async () => {
       const url = `${location.origin}${location.pathname}#me=${encodeURIComponent(me())}`;
@@ -253,7 +259,7 @@
     });
 
     // 필터 이벤트
-    ["#dash-owner-filter", "#board-owner-filter", "#board-show-closed",
+    ["#dash-owner-filter", "#board-owner-filter",
      "#table-search", "#table-stage-filter", "#table-channel-filter", "#table-owner-filter"]
       .forEach((sel) => $(sel).addEventListener("input", renderAll));
 
@@ -568,7 +574,7 @@
     const typeF = fVal("#board-type-filter");
     const ownerF = $("#board-owner-filter").value;
     const catF = fVal("#board-category-filter");
-    const showClosed = $("#board-show-closed").checked;
+    const showClosed = $("#board-show-closed").classList.contains("active");
     const flow = stagesFor(fVal("#board-type-filter"));
     const cols = showClosed ? [...flow, ...CLOSED_STAGES] : flow;
     const leads = state.leads.filter((l) =>

@@ -52,10 +52,10 @@
 
     <!-- 대시보드 -->
     <main id="tab-dashboard" class="tab-panel">
-      <div class="filter-row">
-        <div class="btn-group" id="dash-type-filter" data-value=""></div>
-        <select id="dash-owner-filter"><option value="">전체 담당자</option></select>
-        <div class="btn-group" id="dash-category-filter" data-value=""></div>
+      <div class="filter-bar">
+        <div class="f-group"><span class="f-label">유형</span><div class="btn-group seg" id="dash-type-filter" data-value=""></div></div>
+        <div class="f-group"><span class="f-label">카테고리</span><div class="btn-group" id="dash-category-filter" data-value=""></div></div>
+        <div class="f-group"><span class="f-label">담당자</span><select id="dash-owner-filter"><option value="">전체</option></select></div>
       </div>
       <section class="kpi-row" id="kpi-row"></section>
       <div class="dash-grid">
@@ -121,24 +121,26 @@
 
     <!-- 칸반 보드 -->
     <main id="tab-board" class="tab-panel hidden">
-      <div class="filter-row">
-        <div class="btn-group" id="board-type-filter" data-value=""></div>
-        <select id="board-owner-filter"><option value="">전체 담당자</option></select>
-        <div class="btn-group" id="board-category-filter" data-value=""></div>
-        <label class="chk"><input type="checkbox" id="board-show-closed"> 보류/제외 표시</label>
+      <div class="filter-bar">
+        <div class="f-group"><span class="f-label">유형</span><div class="btn-group seg" id="board-type-filter" data-value=""></div></div>
+        <div class="f-group"><span class="f-label">카테고리</span><div class="btn-group" id="board-category-filter" data-value=""></div></div>
+        <div class="f-group"><span class="f-label">담당자</span><select id="board-owner-filter"><option value="">전체</option></select></div>
+        <div class="f-group"><button type="button" id="board-show-closed" class="toggle-btn">보류/제외 표시</button></div>
       </div>
       <div id="board" class="board"></div>
     </main>
 
     <!-- 테이블 -->
     <main id="tab-table" class="tab-panel hidden">
-      <div class="filter-row">
-        <input type="search" id="table-search" placeholder="이름/상품/메모 검색…">
-        <div class="btn-group" id="table-type-filter" data-value=""></div>
-        <select id="table-stage-filter"><option value="">전체 단계</option></select>
-        <div class="btn-group" id="table-category-filter" data-value=""></div>
-        <select id="table-channel-filter"><option value="">전체 채널</option></select>
-        <select id="table-owner-filter"><option value="">전체 담당자</option></select>
+      <div class="filter-bar">
+        <input type="search" id="table-search" placeholder="🔍 이름/상품/메모 검색">
+        <div class="f-group"><span class="f-label">유형</span><div class="btn-group seg" id="table-type-filter" data-value=""></div></div>
+        <div class="f-group"><span class="f-label">카테고리</span><div class="btn-group" id="table-category-filter" data-value=""></div></div>
+        <div class="f-group">
+          <select id="table-stage-filter"><option value="">전체 단계</option></select>
+          <select id="table-channel-filter"><option value="">전체 채널</option></select>
+          <select id="table-owner-filter"><option value="">전체 담당자</option></select>
+        </div>
         <span id="table-count" class="muted"></span>
       </div>
       <div class="table-wrap">
