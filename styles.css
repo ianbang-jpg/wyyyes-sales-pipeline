@@ -321,6 +321,43 @@ td.td-notes {
 .fu-item .fu-name { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fu-item .fu-days { color: var(--primary); font-size: 12px; font-weight: 700; flex-shrink: 0; }
 
+/* 중요 표시 (★) */
+.star-btn {
+  border: none; background: none;
+  padding: 0 2px; font-size: 15px;
+  color: #c3c8d4; cursor: pointer;
+  line-height: 1;
+}
+.star-btn:hover { color: #f5b301; border: none; }
+.star-btn.on { color: #f5b301; }
+td.td-star { padding-right: 0; }
+
+/* 단계 체류일 배지 */
+.rot-badge {
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px; border-radius: 999px;
+  background: #f0f1f5; color: #8b93a5;
+  white-space: nowrap; flex-shrink: 0;
+}
+.rot-badge.rotting { background: #ffe4e4; color: #c62121; }
+
+/* 다음 액션 */
+.na-line {
+  margin-top: 6px;
+  font-size: 12px; color: #4a5268;
+  line-height: 1.4;
+}
+td.td-na .na-line { margin-top: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.na-due {
+  font-size: 11px; font-weight: 700;
+  color: var(--muted); white-space: nowrap;
+}
+.na-due.due-today { color: #b45a09; }
+.na-due.overdue { color: var(--primary); }
+
+/* 메모 유형 셀렉트 */
+.memo-form select { width: auto; flex-shrink: 0; }
+
 /* 주간 비교 / 기간별 활동 표 */
 .cmp-table { width: 100%; border-collapse: collapse; }
 .cmp-table th, .cmp-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }

@@ -71,6 +71,10 @@
           <div id="period-stats"></div>
         </section>
         <section class="card">
+          <h2>다음 액션</h2>
+          <div id="next-actions" class="fu-list"></div>
+        </section>
+        <section class="card">
           <h2>파이프라인 퍼널</h2>
           <div id="funnel"></div>
         </section>
@@ -131,6 +135,7 @@
         <table id="leads-table">
           <thead>
             <tr>
+              <th data-sort="starred">★</th>
               <th data-sort="name">이름</th>
               <th data-sort="type">유형</th>
               <th data-sort="category">카테고리</th>
@@ -140,6 +145,7 @@
               <th data-sort="region">지역</th>
               <th data-sort="main_products">주요 상품</th>
               <th data-sort="notes">비고</th>
+              <th data-sort="next_action">다음 액션</th>
               <th data-sort="contact_date">컨택일</th>
               <th data-sort="owner">담당자</th>
               <th data-sort="updated_at">수정일</th>
@@ -219,6 +225,12 @@
           <label>승인일
             <input name="approved_at" type="date">
           </label>
+          <label>다음 액션
+            <input name="next_action" placeholder="예: DM 회신 확인, 계약서 발송">
+          </label>
+          <label>액션 기한
+            <input name="next_action_due" type="date">
+          </label>
           <label class="span2">비고
             <textarea name="notes" rows="2"></textarea>
           </label>
@@ -237,6 +249,7 @@
   <div id="drawer-backdrop" class="drawer-backdrop hidden">
     <aside class="drawer">
       <div class="drawer-head">
+        <button id="drawer-star" class="star-btn" title="중요 표시">☆</button>
         <span id="drawer-type"></span>
         <input id="drawer-name-input" class="drawer-name-input" title="이름 (수정 가능)">
         <button id="drawer-close">✕</button>
@@ -245,7 +258,14 @@
       <div id="drawer-info" class="drawer-info"></div>
       <h3>히스토리</h3>
       <form id="memo-form" class="memo-form">
-        <input id="memo-input" placeholder="메모 추가…">
+        <select id="memo-type" title="활동 유형">
+          <option>메모</option>
+          <option>통화</option>
+          <option>메일</option>
+          <option>미팅</option>
+          <option>DM</option>
+        </select>
+        <input id="memo-input" placeholder="활동 기록 추가…">
         <button type="submit">추가</button>
       </form>
       <div id="drawer-timeline" class="timeline"></div>

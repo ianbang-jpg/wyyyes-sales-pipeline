@@ -79,6 +79,44 @@
     `<option value=""></option>` + FOLLOWER_BUCKETS.map((t) =>
       `<option value="${t}" ${String(t) === String(selectedVal) ? "selected" : ""}>${bucketName(t)}↑</option>`).join("");
 
+  const todayStr = () => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  };
+  const daysIn = (d) => Math.floor((Date.now() - new Date(d).getTime()) / 864e5);
+  const ROT_DAYS = 14; // 이 일수 이상 같은 단계에 머물면 경고색
+
+  // 단계 체류일 배지 (활성 단계만, 성사/종료 제외)
+  function rotBadge(l) {
+    if (CLOSED_STAGES.includes(l.stage) || DONE_STAGES.includes(l.stage)) return "";
+    const days = daysIn(l.stage_changed_at || l.updated_at);
+    if (days < 1) return "";
+    return `<span class="rot-badge ${days >= ROT_DAYS ? "rotting" : ""}" title="현재 단계 체류일">${days}일</span>`;
+  }
+
+  // 다음 액션 표시줄
+  function naLine(l) {
+    if (!l.next_action) return "";
+    const due = l.next_action_due;
+    const t = todayStr();
+    const over = due && due < t;
+    const isToday = due === t;
+    return `<div class="na-line">📌 ${esc(l.next_action)}${due
+      ? ` <span class="na-due ${over ? "overdue" : isToday ? "due-today" : ""}">${over ? "기한 지남 · " : isToday ? "오늘 · " : ""}${fmtDate(due)}</span>` : ""}</div>`;
+  }
+
+  const starBtn = (l) => `<button class="star-btn ${l.starred ? "on" : ""}" data-star="${l.id}" title="중요 표시">${l.starred ? "★" : "☆"}</button>`;
+
+  async function toggleStar(id) {
+    const l = state.leads.find((x) => x.id === id);
+    if (!l) return;
+    const { error } = await sb.from("leads").update({ starred: !l.starred }).eq("id", id);
+    if (error) { toast("실패: " + error.message); return; }
+    l.starred = !l.starred;
+    if (state.drawerId === id) $("#drawer-star").textContent = l.starred ? "★" : "☆", $("#drawer-star").classList.toggle("on", l.starred);
+    renderAll();
+  }
+
   // 온/오프라인 칩
   const ctChip = (v) => (v ? `<span class="ct-chip ct-${v}">${v === "온라인" ? "온" : "오프"}</span>` : "");
   const catChip = (v) => (v ? `<span class="cat-chip cat-${esc(v)}">${esc(v)}</span>` : "");
@@ -198,6 +236,13 @@
     $("#modal-delete").addEventListener("click", () => deleteLead());
     $("#lead-form").addEventListener("submit", saveLead);
     $("#drawer-close").addEventListener("click", closeDrawer);
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-star]");
+      if (!b) return;
+      e.stopPropagation(); e.preventDefault();
+      toggleStar(b.dataset.star);
+    }, true);
+    $("#drawer-star").addEventListener("click", () => { if (state.drawerId) toggleStar(state.drawerId); });
     $("#drawer-info").addEventListener("change", onDrawerFieldChange);
     $("#drawer-name-input").addEventListener("change", (e) => onDrawerFieldChange({ target: e.target }));
     $("#drawer-name-input").dataset.field = "name";
@@ -296,6 +341,28 @@
 
     // 주간 비교 / 기간별 활동 (히스토리 로그 기반)
     renderPeriodSections(leads, { dayStart, weekStart, prevWeekStart, monthStart });
+
+    // 다음 액션 카드 (기한 지남 → 오늘 → 예정)
+    const today = todayStr();
+    const withNa = active.filter((l) => l.next_action);
+    const naSorted = [
+      ...withNa.filter((l) => l.next_action_due && l.next_action_due < today).sort((a, b) => a.next_action_due.localeCompare(b.next_action_due)),
+      ...withNa.filter((l) => l.next_action_due === today),
+      ...withNa.filter((l) => !l.next_action_due || l.next_action_due > today)
+        .sort((a, b) => String(a.next_action_due || "9999").localeCompare(String(b.next_action_due || "9999"))),
+    ];
+    $("#next-actions").innerHTML = naSorted.slice(0, 8).map((l) => {
+      const due = l.next_action_due;
+      const over = due && due < today;
+      const isToday = due === today;
+      return `
+        <div class="fu-item" data-id="${l.id}">
+          <span class="fu-name">${esc(l.name)} <span class="muted">— ${esc(l.next_action)}</span></span>
+          ${due ? `<span class="na-due ${over ? "overdue" : isToday ? "due-today" : ""}">${over ? "기한 지남" : isToday ? "오늘" : fmtDate(due)}</span>` : ""}
+        </div>`;
+    }).join("") || `<span class="muted">등록된 다음 액션이 없어요. 카드를 열어 "다음 액션"을 채워보세요.</span>`;
+    $$("#next-actions .fu-item").forEach((el) =>
+      el.addEventListener("click", () => openDrawer(el.dataset.id)));
 
     // 팔로업 필요 리스트 (오래된 순)
     $("#followup-list").innerHTML = followup.slice(0, 8).map((l) => {
@@ -405,7 +472,8 @@
       (!typeF || l.type === typeF) && (!ownerF || l.owner === ownerF) && (!catF || l.category === catF));
 
     $("#board").innerHTML = cols.map((stage) => {
-      const cards = leads.filter((l) => l.stage === stage);
+      const cards = leads.filter((l) => l.stage === stage)
+        .sort((a, b) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0));
       return `
         <div class="board-col" data-stage="${stage}">
           <div class="board-col-head">
@@ -416,8 +484,10 @@
             ${cards.map((l) => `
               <div class="lead-card" draggable="true" data-id="${l.id}">
                 <div class="lc-name">
+                  ${starBtn(l)}
                   <span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span>
                   ${esc(l.name)}
+                  ${rotBadge(l)}
                 </div>
                 <div class="lc-meta">
                   ${l.channel ? `<span>${chIcon(l.channel)}</span>` : ""}
@@ -426,6 +496,7 @@
                   ${l.followers ? `<span>👥 ${followerLabel(l.followers)}</span>` : ""}
                   ${l.owner ? `<span>${esc(l.owner)}</span>` : ""}
                 </div>
+                ${naLine(l)}
                 ${l.notes ? `<div class="lc-notes">${esc(l.notes)}</div>` : ""}
               </div>`).join("")}
           </div>
@@ -448,11 +519,17 @@
         const lead = state.leads.find((l) => l.id === id);
         if (!lead || lead.stage === stage) return;
         const prev = lead.stage;
+        const patch = { stage, stage_changed_at: new Date().toISOString() };
+        if (CLOSED_STAGES.includes(stage)) {
+          const reason = window.prompt(`'${stage}' 사유를 입력해주세요 (선택):`, lead.closed_reason || "");
+          if (reason !== null && reason.trim()) patch.closed_reason = reason.trim();
+        }
         lead.stage = stage;
         renderBoard();
-        const { error } = await sb.from("leads").update({ stage }).eq("id", id);
+        const { error } = await sb.from("leads").update(patch).eq("id", id);
         if (error) { lead.stage = prev; renderBoard(); toast("변경 실패: " + error.message); return; }
-        logActivity(id, "단계 변경", `${prev} → ${stage}`);
+        Object.assign(lead, patch);
+        logActivity(id, "단계 변경", `${prev} → ${stage}${patch.closed_reason ? ` (${patch.closed_reason})` : ""}`);
         toast(`${lead.name}: ${prev} → ${stage}`);
       });
     });
@@ -485,6 +562,7 @@
     const { sortKey, sortDir } = state;
     rows.sort((a, b) => {
       let va = a[sortKey], vb = b[sortKey];
+      if (sortKey === "starred") { va = va ? 1 : 0; vb = vb ? 1 : 0; }
       if (sortKey === "stage") {
         const order = [...ALL_STAGES, ...CLOSED_STAGES];
         va = order.indexOf(va); vb = order.indexOf(vb);
@@ -503,7 +581,8 @@
     $("#table-count").textContent = `${rows.length}건`;
     $("#leads-table tbody").innerHTML = rows.map((l) => `
       <tr data-id="${l.id}">
-        <td class="td-name">${esc(l.name)}</td>
+        <td class="td-star">${starBtn(l)}</td>
+        <td class="td-name">${esc(l.name)} ${rotBadge(l)}</td>
         <td><span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span></td>
         <td>${catChip(l.category)}</td>
         <td><span class="stage-chip stage-${l.stage}">${l.stage}</span></td>
@@ -512,6 +591,7 @@
         <td>${esc(l.region || "")}</td>
         <td>${esc(l.main_products || "")}</td>
         <td class="td-notes" title="${esc(l.notes || "")}">${esc(l.notes || "")}</td>
+        <td class="td-na">${naLine(l)}</td>
         <td>${fmtDate(l.contact_date)}</td>
         <td>${esc(l.owner || "")}</td>
         <td class="muted">${fmtDate(l.updated_at)}</td>
@@ -534,7 +614,8 @@
       form.elements["type"].value = l.type;
       toggleTypeFields(); // 유형에 맞는 단계 옵션 구성 후 값 주입
       for (const key of ["stage", "category", "name", "link", "channel", "channel_type", "business", "region",
-        "main_products", "contact_point", "contact_date", "nickname", "approved_at", "notes", "owner"]) {
+        "main_products", "contact_point", "contact_date", "next_action", "next_action_due",
+        "nickname", "approved_at", "notes", "owner"]) {
         if (form.elements[key]) form.elements[key].value = l[key] ?? "";
       }
       form.elements["followers"].innerHTML = followerOptions(followerFloor(l.followers));
@@ -567,6 +648,8 @@
       followers: f["followers"].value ? Number(f["followers"].value) : null,
       business: f["business"].value || null,
       region: f["region"].value.trim() || null,
+      next_action: f["next_action"].value.trim() || null,
+      next_action_due: f["next_action_due"].value || null,
       main_products: f["main_products"].value.trim() || null,
       contact_point: f["contact_point"].value.trim() || null,
       contact_date: f["contact_date"].value || null,
@@ -579,12 +662,18 @@
 
     if (state.editingId) {
       const prev = state.leads.find((l) => l.id === state.editingId);
+      if (prev && prev.stage !== payload.stage) payload.stage_changed_at = new Date().toISOString();
       const { error } = await sb.from("leads").update(payload).eq("id", state.editingId);
       if (error) { toast("저장 실패: " + error.message); return; }
       if (prev && prev.stage !== payload.stage) logActivity(state.editingId, "단계 변경", `${prev.stage} → ${payload.stage}`);
       else logActivity(state.editingId, "정보 수정", null);
       toast("저장했어요");
     } else {
+      // 중복 감지 (이름/링크)
+      const norm = (x) => String(x || "").replace(/\s+/g, "").toLowerCase();
+      const dup = state.leads.find((x) =>
+        norm(x.name) === norm(payload.name) || (payload.link && x.link && x.link === payload.link));
+      if (dup && !confirm(`이미 등록된 항목 같아요: "${dup.name}" (${TYPE_LABEL[dup.type]} · ${dup.stage})\n그래도 등록할까요?`)) return;
       const { data, error } = await sb.from("leads").insert(payload).select().single();
       if (error) { toast("등록 실패: " + error.message); return; }
       logActivity(data.id, "신규 등록", `${payload.stage} 단계로 등록`);
@@ -609,7 +698,8 @@
   const FIELD_LABELS = {
     stage: "단계", category: "카테고리", link: "링크", channel: "발굴 채널",
     channel_type: "온/오프라인", followers: "팔로워", shop_detail: "샵 상세",
-    business: "사업자 여부", region: "지역", main_products: "주요 상품", contact_point: "컨택포인트", contact_date: "컨택일",
+    business: "사업자 여부", region: "지역", main_products: "주요 상품",
+    next_action: "다음 액션", next_action_due: "액션 기한", closed_reason: "보류/제외 사유", contact_point: "컨택포인트", contact_date: "컨택일",
     collab_type: "협업 유형", nickname: "닉네임", approved_at: "승인일",
     owner: "담당자", notes: "비고", name: "이름",
   };
@@ -639,7 +729,7 @@
       case "business":
         return `<select data-field="business"><option value=""></option>${["사업자", "개인"].map((b) =>
           `<option ${b === raw ? "selected" : ""}>${b}</option>`).join("")}</select>`;
-      case "contact_date": case "approved_at":
+      case "contact_date": case "approved_at": case "next_action_due":
         return `<input data-field="${key}" type="date" value="${val}">`;
       case "link":
         return `<div class="link-field"><input data-field="link" type="url" value="${val}">` +
@@ -657,7 +747,12 @@
     state.drawerId = id;
     $("#drawer-type").innerHTML = `<span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span>`;
     $("#drawer-name-input").value = l.name;
-    const keys = ["stage", "category", "owner", "link", "channel", "channel_type", "followers",
+    $("#drawer-star").textContent = l.starred ? "★" : "☆";
+    $("#drawer-star").classList.toggle("on", !!l.starred);
+    const keys = ["stage",
+      ...(CLOSED_STAGES.includes(l.stage) ? ["closed_reason"] : []),
+      "next_action", "next_action_due",
+      "category", "owner", "link", "channel", "channel_type", "followers",
       "business", "region", "main_products", "contact_point", "contact_date",
       ...(l.type === "influencer" ? ["collab_type"] : []),
       "nickname", "approved_at", "notes"];
@@ -680,7 +775,14 @@
     let patch;
     if (key === "collab_type") patch = { extra: { ...(l.extra || {}), collab_type: val || undefined } };
     else if (key === "followers") patch = { followers: val ? Number(val) : null };
-    else if (key === "stage") { if (!val || val === l.stage) return; patch = { stage: val }; }
+    else if (key === "stage") {
+      if (!val || val === l.stage) return;
+      patch = { stage: val, stage_changed_at: new Date().toISOString() };
+      if (CLOSED_STAGES.includes(val)) {
+        const reason = window.prompt(`'${val}' 사유를 입력해주세요 (선택):`, l.closed_reason || "");
+        if (reason !== null && reason.trim()) patch.closed_reason = reason.trim();
+      }
+    }
     else if (key === "name") { if (!val) { el.value = l.name; return; } patch = { name: val }; }
     else patch = { [key]: val || null };
 
@@ -689,8 +791,9 @@
     if (error) { toast("저장 실패: " + error.message); return; }
     Object.assign(l, patch);
     if (key === "stage") {
-      logActivity(l.id, "단계 변경", `${prevStage} → ${val}`).then(() => loadDrawerTimeline(l.id));
+      logActivity(l.id, "단계 변경", `${prevStage} → ${val}${patch.closed_reason ? ` (${patch.closed_reason})` : ""}`).then(() => loadDrawerTimeline(l.id));
       toast(`${l.name}: ${prevStage} → ${val}`);
+      openDrawer(l.id); // 종료 사유 필드 표시 갱신
     } else {
       logActivity(l.id, "정보 수정", FIELD_LABELS[key] || key).then(() => loadDrawerTimeline(l.id));
       toast("저장했어요");
@@ -721,15 +824,17 @@
     const text = input.value.trim();
     if (!text || !state.drawerId) return;
     input.value = "";
-    await logActivity(state.drawerId, "메모", text);
+    await logActivity(state.drawerId, $("#memo-type").value || "메모", text);
     loadDrawerTimeline(state.drawerId);
   }
 
   // ── CSV 내보내기 ──
   function exportCsv() {
-    const cols = ["type", "name", "category", "stage", "channel", "channel_type", "followers", "business", "region",
+    const cols = ["type", "name", "category", "stage", "closed_reason", "next_action", "next_action_due",
+      "channel", "channel_type", "followers", "business", "region",
       "shop_detail", "main_products", "contact_point", "contact_date", "nickname", "approved_at", "owner", "notes", "link", "created_at"];
-    const header = ["유형", "이름", "카테고리", "단계", "발굴채널", "온오프", "팔로워", "사업자", "지역",
+    const header = ["유형", "이름", "카테고리", "단계", "종료사유", "다음액션", "액션기한",
+      "발굴채널", "온오프", "팔로워", "사업자", "지역",
       "샵상세(구)", "주요상품", "컨택포인트", "컨택일", "닉네임", "승인일", "담당자", "비고", "링크", "등록일"];
     const rows = state.leads.map((l) =>
       cols.map((c) => {
