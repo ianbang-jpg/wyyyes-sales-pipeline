@@ -166,6 +166,18 @@
   async function enterApp() {
     $("#app").classList.remove("hidden");
     initControls();
+    // #me=이름 해시 → 해당 팀원의 내 페이지로 진입
+    const m = location.hash.match(/^#me=(.+)$/);
+    if (m) {
+      const name = decodeURIComponent(m[1]);
+      if (OWNERS.includes(name)) {
+        localStorage.setItem("sp_me", name);
+        $("#me-select").value = name;
+        state.tab = "my";
+        $$(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === "my"));
+        $$(".tab-panel").forEach((p) => p.classList.toggle("hidden", p.id !== "tab-my"));
+      }
+    }
     await loadLeads();
     subscribeRealtime();
   }
@@ -210,17 +222,22 @@
     const meSel = $("#me-select");
     meSel.innerHTML = OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     meSel.value = me();
-    meSel.addEventListener("change", () => localStorage.setItem("sp_me", meSel.value));
+    meSel.addEventListener("change", () => { localStorage.setItem("sp_me", meSel.value); renderAll(); });
 
     // 탭
     $$(".tab-btn").forEach((btn) =>
-      btn.addEventListener("click", () => {
-        state.tab = btn.dataset.tab;
-        $$(".tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
-        $$(".tab-panel").forEach((p) => p.classList.toggle("hidden", p.id !== "tab-" + state.tab));
-        renderAll();
-      })
-    );
+      btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
+
+    // 내 전용 링크 복사
+    $("#my-link-btn").addEventListener("click", async () => {
+      const url = `${location.origin}${location.pathname}#me=${encodeURIComponent(me())}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast("전용 링크를 복사했어요 — 북마크해두세요!");
+      } catch {
+        window.prompt("아래 링크를 복사하세요:", url);
+      }
+    });
 
     // 폼 옵션 (단계는 유형에 따라 toggleTypeFields에서 채움)
     $("#form-owner").innerHTML = `<option value=""></option>` + OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
@@ -292,9 +309,17 @@
     sel.value = opts.includes(cur) ? cur : "발굴";
   }
 
+  function activateTab(tab) {
+    state.tab = tab;
+    $$(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+    $$(".tab-panel").forEach((p) => p.classList.toggle("hidden", p.id !== "tab-" + tab));
+    renderAll();
+  }
+
   // ── 렌더링 ──
   function renderAll() {
     if (state.tab === "dashboard") renderDashboard();
+    if (state.tab === "my") renderMy();
     if (state.tab === "board") renderBoard();
     if (state.tab === "table") renderTable();
   }
@@ -476,6 +501,69 @@
   }
 
   // ── 칸반 ──
+  // ── 내 페이지 ──
+  function renderMy() {
+    const name = me();
+    $("#my-title").textContent = `${name}님의 파이프라인`;
+    const mine = state.leads.filter((l) => l.owner === name);
+    const active = mine.filter((l) => !CLOSED_STAGES.includes(l.stage));
+    const today = todayStr();
+    const withNa = active.filter((l) => l.next_action);
+    const overdue = withNa.filter((l) => l.next_action_due && l.next_action_due < today);
+    const followup = active
+      .filter((l) => Date.now() - new Date(l.updated_at).getTime() > 7 * 864e5)
+      .sort((a, b) => a.updated_at.localeCompare(b.updated_at));
+
+    const kpis = [
+      { label: "내 담당", value: mine.length, sub: `활성 ${active.length}건` },
+      { label: "진행중", value: mine.filter((l) => IN_PROGRESS.includes(l.stage)).length, sub: "컨택~실행 단계" },
+      { label: "다음 액션", value: withNa.length, sub: overdue.length ? `기한 지남 ${overdue.length}건 ⚠️` : "기한 지남 없음" },
+      { label: "팔로업 필요", value: followup.length, sub: "7일+ 업데이트 없음" },
+      { label: "성사", value: mine.filter((l) => DONE_STAGES.includes(l.stage)).length, sub: "판매·완료 누적" },
+    ];
+    $("#my-kpi").innerHTML = kpis.map((k) => `
+      <div class="kpi">
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value">${k.value}</div>
+        <div class="kpi-sub">${k.sub}</div>
+      </div>`).join("");
+
+    // 내 다음 액션 (기한 지남 → 오늘 → 예정)
+    const naSorted = [
+      ...withNa.filter((l) => l.next_action_due && l.next_action_due < today).sort((a, b) => a.next_action_due.localeCompare(b.next_action_due)),
+      ...withNa.filter((l) => l.next_action_due === today),
+      ...withNa.filter((l) => !l.next_action_due || l.next_action_due > today)
+        .sort((a, b) => String(a.next_action_due || "9999").localeCompare(String(b.next_action_due || "9999"))),
+    ];
+    $("#my-actions").innerHTML = naSorted.slice(0, 10).map((l) => {
+      const due = l.next_action_due;
+      const over = due && due < today;
+      const isToday = due === today;
+      return `
+        <div class="fu-item" data-id="${l.id}">
+          <span class="fu-name">${esc(l.name)} <span class="muted">— ${esc(l.next_action)}</span></span>
+          ${due ? `<span class="na-due ${over ? "overdue" : isToday ? "due-today" : ""}">${over ? "기한 지남" : isToday ? "오늘" : fmtDate(due)}</span>` : ""}
+        </div>`;
+    }).join("") || `<span class="muted">등록된 다음 액션이 없어요.</span>`;
+
+    // 내 팔로업
+    $("#my-followup").innerHTML = followup.slice(0, 10).map((l) => {
+      const days = Math.floor((Date.now() - new Date(l.updated_at).getTime()) / 864e5);
+      return `
+        <div class="fu-item" data-id="${l.id}">
+          <span class="fu-name">${esc(l.name)}</span>
+          <span class="stage-chip stage-${l.stage}">${l.stage}</span>
+          <span class="fu-days">${days}일 전</span>
+        </div>`;
+    }).join("") || `<span class="muted">7일 이상 방치된 건이 없어요 👍</span>`;
+
+    $$("#my-actions .fu-item, #my-followup .fu-item").forEach((el) =>
+      el.addEventListener("click", () => openDrawer(el.dataset.id)));
+
+    // 내 보드 (활성 단계만, 유형 합집합)
+    renderBoardInto("#my-board", active, ALL_STAGES);
+  }
+
   function renderBoard() {
     const typeF = fVal("#board-type-filter");
     const ownerF = $("#board-owner-filter").value;
@@ -485,8 +573,13 @@
     const cols = showClosed ? [...flow, ...CLOSED_STAGES] : flow;
     const leads = state.leads.filter((l) =>
       (!typeF || l.type === typeF) && (!ownerF || l.owner === ownerF) && (!catF || l.category === catF));
+    renderBoardInto("#board", leads, cols);
+  }
 
-    $("#board").innerHTML = cols.map((stage) => {
+  // 칸반 렌더 공용 (보드 탭 / 내 페이지)
+  function renderBoardInto(containerSel, leads, cols) {
+    const root = $(containerSel);
+    root.innerHTML = cols.map((stage) => {
       const cards = leads.filter((l) => l.stage === stage)
         .sort((a, b) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0));
       return `
@@ -518,11 +611,11 @@
     }).join("");
 
     // 드래그 & 드롭
-    $$(".lead-card").forEach((card) => {
+    root.querySelectorAll(".lead-card").forEach((card) => {
       card.addEventListener("dragstart", (e) => e.dataTransfer.setData("text/plain", card.dataset.id));
       card.addEventListener("click", () => openDrawer(card.dataset.id));
     });
-    $$(".board-col").forEach((col) => {
+    root.querySelectorAll(".board-col").forEach((col) => {
       col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("drag-over"); });
       col.addEventListener("dragleave", () => col.classList.remove("drag-over"));
       col.addEventListener("drop", async (e) => {
@@ -539,9 +632,9 @@
           if (reason !== null && reason.trim()) patch.closed_reason = reason.trim();
         }
         lead.stage = stage;
-        renderBoard();
+        renderAll();
         const { error } = await sb.from("leads").update(patch).eq("id", id);
-        if (error) { lead.stage = prev; renderBoard(); toast("변경 실패: " + error.message); return; }
+        if (error) { lead.stage = prev; renderAll(); toast("변경 실패: " + error.message); return; }
         Object.assign(lead, patch);
         logActivity(id, "단계 변경", `${prev} → ${stage}${patch.closed_reason ? ` (${patch.closed_reason})` : ""}`);
         toast(`${lead.name}: ${prev} → ${stage}`);

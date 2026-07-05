@@ -385,6 +385,12 @@ td.td-na .na-line { margin-top: 0; max-width: 220px; overflow: hidden; text-over
 /* 메모 유형 셀렉트 */
 .memo-form select { width: auto; flex-shrink: 0; }
 
+/* 내 페이지 */
+.my-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.my-head h2 { margin: 0; font-size: 18px; }
+.my-grid { margin-bottom: 20px; }
+.my-board-title { font-size: 14px; color: var(--muted); margin: 0 0 12px; }
+
 /* 주간 비교 / 기간별 활동 표 */
 .cmp-table { width: 100%; border-collapse: collapse; }
 .cmp-table th, .cmp-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }

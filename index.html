@@ -37,6 +37,7 @@
         <span class="logo"><img src="assets/wyyyes-logo-white.png" alt="WYYYES" class="logo-img"> GTM 세일즈 파이프라인</span>
         <nav class="tabs">
           <button class="tab-btn active" data-tab="dashboard">대시보드</button>
+          <button class="tab-btn" data-tab="my">내 페이지</button>
           <button class="tab-btn" data-tab="board">보드</button>
           <button class="tab-btn" data-tab="table">테이블</button>
         </nav>
@@ -95,6 +96,27 @@
           <div id="recent-activities" class="timeline"></div>
         </section>
       </div>
+    </main>
+
+    <!-- 내 페이지 -->
+    <main id="tab-my" class="tab-panel hidden">
+      <div class="my-head">
+        <h2 id="my-title"></h2>
+        <button id="my-link-btn" title="이 페이지로 바로 오는 링크를 복사합니다">🔗 내 전용 링크 복사</button>
+      </div>
+      <section class="kpi-row" id="my-kpi"></section>
+      <div class="dash-grid my-grid">
+        <section class="card">
+          <h2>내 다음 액션</h2>
+          <div id="my-actions" class="fu-list"></div>
+        </section>
+        <section class="card">
+          <h2>팔로업 필요 (7일+ 업데이트 없음)</h2>
+          <div id="my-followup" class="fu-list"></div>
+        </section>
+      </div>
+      <h3 class="my-board-title">내 보드</h3>
+      <div id="my-board" class="board"></div>
     </main>
 
     <!-- 칸반 보드 -->
