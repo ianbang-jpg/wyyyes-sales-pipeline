@@ -39,6 +39,7 @@
           <button class="tab-btn active" data-tab="dashboard">대시보드</button>
           <button class="tab-btn" data-tab="board">보드</button>
           <button class="tab-btn" data-tab="table">테이블</button>
+          <button class="tab-btn" data-tab="cal">캘린더</button>
         </nav>
       </div>
       <div class="topbar-right">
@@ -177,6 +178,21 @@
           <tbody></tbody>
         </table>
       </div>
+    </main>
+
+    <!-- 캘린더 -->
+    <main id="tab-cal" class="tab-panel hidden">
+      <div class="cal-head">
+        <div class="cal-nav">
+          <button id="cal-prev">◀</button>
+          <h2 id="cal-title"></h2>
+          <button id="cal-next">▶</button>
+          <button id="cal-today">오늘</button>
+        </div>
+        <div class="cal-legend" id="cal-legend"></div>
+      </div>
+      <div class="cal-type-legend muted">📞 컨택일 · ✅ 승인일 · 📌 액션 기한 <span class="cal-note">(발굴·보류·제외 단계는 표시하지 않아요)</span></div>
+      <div id="calendar" class="calendar"></div>
     </main>
   </div>
 

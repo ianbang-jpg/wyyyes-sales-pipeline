@@ -13,6 +13,11 @@
   const stagesFor = (type) => STAGE_FLOW[type] || ALL_STAGES;
   const TYPE_LABEL = { dealer: "딜러", influencer: "인플루언서" };
   const OWNERS = [...(CFG.OWNERS || [])].sort((a, b) => a.localeCompare(b));
+  const OWNER_PALETTE = ["#1a56c4", "#c9186e", "#15803c", "#b45a09", "#6d3bd6", "#0e7a9e", "#c62828", "#4d7c0f"];
+  const ownerColor = (name) => {
+    const i = OWNERS.indexOf(name);
+    return i >= 0 ? OWNER_PALETTE[i % OWNER_PALETTE.length] : "#8b93a5";
+  };
 
   // 채널 브랜드 심볼 (Simple Icons)
   const CHANNEL_ICONS = {
@@ -42,6 +47,7 @@
     sortDir: "desc",
     selectMode: false,
     selected: new Set(),
+    calMonth: null, // Date (해당 월 1일)
   };
 
   const me = () => localStorage.getItem("sp_me") || CFG.OWNERS?.[0] || "팀";
@@ -272,6 +278,16 @@
     });
     initMarquee();
 
+    // 캘린더 내비게이션
+    const calShift = (n) => {
+      const m = state.calMonth || new Date();
+      state.calMonth = new Date(m.getFullYear(), m.getMonth() + n, 1);
+      renderCal();
+    };
+    $("#cal-prev").addEventListener("click", () => calShift(-1));
+    $("#cal-next").addEventListener("click", () => calShift(1));
+    $("#cal-today").addEventListener("click", () => { state.calMonth = null; renderCal(); });
+
     // 보류/제외 표시 토글
     $("#board-show-closed").addEventListener("click", (e) => {
       e.currentTarget.classList.toggle("active");
@@ -374,6 +390,7 @@
     if (state.tab === "my") renderMy();
     if (state.tab === "board") renderBoard();
     if (state.tab === "table") renderTable();
+    if (state.tab === "cal") renderCal();
   }
 
   function renderDashboard() {
@@ -654,6 +671,64 @@
     });
   }
 
+  // ── 캘린더 ──
+  const CAL_EXCLUDED = ["발굴", "보류", "제외"];
+  const CAL_FIELDS = [
+    { key: "contact_date", icon: "📞", label: "컨택일" },
+    { key: "approved_at", icon: "✅", label: "승인일" },
+    { key: "next_action_due", icon: "📌", label: "액션 기한" },
+  ];
+
+  function renderCal() {
+    const base = state.calMonth || new Date();
+    const year = base.getFullYear(), month = base.getMonth();
+    $("#cal-title").textContent = `${year}년 ${month + 1}월`;
+
+    // 담당자 범례
+    $("#cal-legend").innerHTML = OWNERS.map((o) =>
+      `<span class="cal-owner"><span class="cal-dot" style="background:${ownerColor(o)}"></span>${esc(o)}</span>`).join("");
+
+    // 날짜별 이벤트 수집 (발굴/보류/제외 제외)
+    const events = {}; // "YYYY-MM-DD" -> [{lead, icon, label}]
+    state.leads.filter((l) => !CAL_EXCLUDED.includes(l.stage)).forEach((l) => {
+      CAL_FIELDS.forEach((f) => {
+        const d = l[f.key];
+        if (!d) return;
+        (events[d] = events[d] || []).push({ lead: l, icon: f.icon, label: f.label });
+      });
+    });
+
+    // 월간 그리드 (일요일 시작)
+    const first = new Date(year, month, 1);
+    const gridStart = new Date(first);
+    gridStart.setDate(1 - first.getDay());
+    const today = todayStr();
+    const cells = [];
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(gridStart);
+      d.setDate(gridStart.getDate() + i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const evs = events[key] || [];
+      const other = d.getMonth() !== month;
+      cells.push(`
+        <div class="cal-cell ${other ? "cal-other" : ""} ${key === today ? "cal-today" : ""}">
+          <div class="cal-date ${d.getDay() === 0 ? "sun" : d.getDay() === 6 ? "sat" : ""}">${d.getDate()}</div>
+          ${evs.map((ev) => `
+            <div class="cal-ev" data-id="${ev.lead.id}" style="--oc:${ownerColor(ev.lead.owner)}"
+                 title="${esc(ev.lead.name)} · ${ev.label} · ${esc(ev.lead.owner || "담당자 미지정")}">
+              ${ev.icon} ${esc(ev.lead.name)}
+            </div>`).join("")}
+        </div>`);
+    }
+    $("#calendar").innerHTML =
+      `<div class="cal-grid cal-weekdays">${["일", "월", "화", "수", "목", "금", "토"].map((d, i) =>
+        `<div class="cal-wd ${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${d}</div>`).join("")}</div>` +
+      `<div class="cal-grid">${cells.join("")}</div>`;
+
+    $$("#calendar .cal-ev").forEach((el) =>
+      el.addEventListener("click", () => openDrawer(el.dataset.id)));
+  }
+
   // ── 내 페이지 ──
   function renderMy() {
     const name = me();
@@ -924,9 +999,20 @@
     state.editingId = null;
   }
 
+  function findDupName(name, exceptId) {
+    const norm = (x) => String(x || "").replace(/\s+/g, "").toLowerCase();
+    return state.leads.find((x) => x.id !== exceptId && norm(x.name) === norm(name));
+  }
+
   async function saveLead(e) {
     e.preventDefault();
     const f = $("#lead-form").elements;
+    // 이름 중복 차단 (담당자 무관)
+    const dupName = findDupName(f["name"].value, state.editingId);
+    if (dupName) {
+      alert(`⚠️ 이미 등록된 이름이에요.\n"${dupName.name}" — ${dupName.owner || "담당자 미지정"} 담당 · ${TYPE_LABEL[dupName.type]} · ${dupName.stage}\n\n중복 등록 방지를 위해 저장하지 않았어요.`);
+      return;
+    }
     const payload = {
       type: f["type"].value,
       stage: f["stage"].value,
@@ -959,11 +1045,9 @@
       else logActivity(state.editingId, "정보 수정", null);
       toast("저장했어요");
     } else {
-      // 중복 감지 (이름/링크)
-      const norm = (x) => String(x || "").replace(/\s+/g, "").toLowerCase();
-      const dup = state.leads.find((x) =>
-        norm(x.name) === norm(payload.name) || (payload.link && x.link && x.link === payload.link));
-      if (dup && !confirm(`이미 등록된 항목 같아요: "${dup.name}" (${TYPE_LABEL[dup.type]} · ${dup.stage})\n그래도 등록할까요?`)) return;
+      // 링크 중복은 경고 후 선택 (다른 계정일 수 있음)
+      const dupLink = payload.link && state.leads.find((x) => x.link && x.link === payload.link);
+      if (dupLink && !confirm(`같은 링크가 이미 등록돼 있어요: "${dupLink.name}" (${dupLink.owner || "담당자 미지정"} 담당)\n그래도 등록할까요?`)) return;
       const { data, error } = await sb.from("leads").insert(payload).select().single();
       if (error) { toast("등록 실패: " + error.message); return; }
       logActivity(data.id, "신규 등록", `${payload.stage} 단계로 등록`);
@@ -1073,7 +1157,16 @@
         if (reason !== null && reason.trim()) patch.closed_reason = reason.trim();
       }
     }
-    else if (key === "name") { if (!val) { el.value = l.name; return; } patch = { name: val }; }
+    else if (key === "name") {
+      if (!val) { el.value = l.name; return; }
+      const dupName = findDupName(val, l.id);
+      if (dupName) {
+        alert(`⚠️ 이미 등록된 이름이에요: "${dupName.name}" (${dupName.owner || "담당자 미지정"} 담당)`);
+        el.value = l.name;
+        return;
+      }
+      patch = { name: val };
+    }
     else patch = { [key]: val || null };
 
     const prevStage = l.stage;
