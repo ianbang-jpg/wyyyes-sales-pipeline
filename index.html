@@ -52,13 +52,9 @@
     <!-- 대시보드 -->
     <main id="tab-dashboard" class="tab-panel">
       <div class="filter-row">
-        <select id="dash-type-filter">
-          <option value="">전체 유형</option>
-          <option value="dealer">딜러</option>
-          <option value="influencer">인플루언서</option>
-        </select>
+        <div class="btn-group" id="dash-type-filter" data-value=""></div>
         <select id="dash-owner-filter"><option value="">전체 담당자</option></select>
-        <select id="dash-category-filter"><option value="">전체 카테고리</option></select>
+        <div class="btn-group" id="dash-category-filter" data-value=""></div>
       </div>
       <section class="kpi-row" id="kpi-row"></section>
       <div class="dash-grid">
@@ -104,13 +100,9 @@
     <!-- 칸반 보드 -->
     <main id="tab-board" class="tab-panel hidden">
       <div class="filter-row">
-        <select id="board-type-filter">
-          <option value="">전체 유형</option>
-          <option value="dealer">딜러</option>
-          <option value="influencer">인플루언서</option>
-        </select>
+        <div class="btn-group" id="board-type-filter" data-value=""></div>
         <select id="board-owner-filter"><option value="">전체 담당자</option></select>
-        <select id="board-category-filter"><option value="">전체 카테고리</option></select>
+        <div class="btn-group" id="board-category-filter" data-value=""></div>
         <label class="chk"><input type="checkbox" id="board-show-closed"> 보류/제외 표시</label>
       </div>
       <div id="board" class="board"></div>
@@ -120,13 +112,9 @@
     <main id="tab-table" class="tab-panel hidden">
       <div class="filter-row">
         <input type="search" id="table-search" placeholder="이름/상품/메모 검색…">
-        <select id="table-type-filter">
-          <option value="">전체 유형</option>
-          <option value="dealer">딜러</option>
-          <option value="influencer">인플루언서</option>
-        </select>
+        <div class="btn-group" id="table-type-filter" data-value=""></div>
         <select id="table-stage-filter"><option value="">전체 단계</option></select>
-        <select id="table-category-filter"><option value="">전체 카테고리</option></select>
+        <div class="btn-group" id="table-category-filter" data-value=""></div>
         <select id="table-channel-filter"><option value="">전체 채널</option></select>
         <select id="table-owner-filter"><option value="">전체 담당자</option></select>
         <span id="table-count" class="muted"></span>

@@ -188,6 +188,22 @@
     await sb.from("activities").insert({ lead_id: leadId, action, detail, actor: me() });
   }
 
+  // 버튼식 필터 그룹 (data-value에 선택값 저장)
+  function initBtnGroup(sel, options) {
+    const el = $(sel);
+    el.dataset.value = "";
+    el.innerHTML = options.map((o) =>
+      `<button type="button" data-value="${esc(o.value)}" class="${o.value === "" ? "active" : ""}">${esc(o.label)}</button>`).join("");
+    el.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-value]");
+      if (!b) return;
+      el.dataset.value = b.dataset.value;
+      [...el.children].forEach((c) => c.classList.toggle("active", c === b));
+      renderAll();
+    });
+  }
+  const fVal = (sel) => $(sel).dataset.value || "";
+
   // ── 컨트롤 초기화 ──
   function initControls() {
     // 내 이름
@@ -211,18 +227,17 @@
     $("#form-category").innerHTML = `<option value=""></option>` + (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
     $("#channel-options").innerHTML = (CFG.CHANNELS || []).map((c) => `<option value="${esc(c)}">`).join("");
     $("#table-stage-filter").innerHTML += [...ALL_STAGES, ...CLOSED_STAGES].map((s) => `<option>${s}</option>`).join("");
-    ["#table-category-filter", "#board-category-filter", "#dash-category-filter"].forEach((sel) => {
-      $(sel).innerHTML += (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
-    });
+    const typeOpts = [{ value: "", label: "전체" }, { value: "dealer", label: "딜러" }, { value: "influencer", label: "인플루언서" }];
+    const catOpts = [{ value: "", label: "전체" }, ...(CFG.CATEGORIES || []).map((c) => ({ value: c, label: c }))];
+    ["#dash-type-filter", "#board-type-filter", "#table-type-filter"].forEach((sel) => initBtnGroup(sel, typeOpts));
+    ["#dash-category-filter", "#board-category-filter", "#table-category-filter"].forEach((sel) => initBtnGroup(sel, catOpts));
     ["#table-owner-filter", "#board-owner-filter", "#dash-owner-filter"].forEach((sel) => {
       $(sel).innerHTML += OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     });
 
     // 필터 이벤트
-    ["#dash-type-filter", "#dash-owner-filter", "#dash-category-filter",
-     "#board-type-filter", "#board-owner-filter", "#board-category-filter", "#board-show-closed",
-     "#table-search", "#table-type-filter", "#table-stage-filter", "#table-channel-filter",
-     "#table-category-filter", "#table-owner-filter"]
+    ["#dash-owner-filter", "#board-owner-filter", "#board-show-closed",
+     "#table-search", "#table-stage-filter", "#table-channel-filter", "#table-owner-filter"]
       .forEach((sel) => $(sel).addEventListener("input", renderAll));
 
     // 유형별 필드 토글
@@ -285,9 +300,9 @@
   }
 
   function renderDashboard() {
-    const typeF = $("#dash-type-filter").value;
+    const typeF = fVal("#dash-type-filter");
     const ownerF = $("#dash-owner-filter").value;
-    const catF = $("#dash-category-filter").value;
+    const catF = fVal("#dash-category-filter");
     const leads = state.leads.filter((l) =>
       (!typeF || l.type === typeF) && (!ownerF || l.owner === ownerF) && (!catF || l.category === catF));
     const active = leads.filter((l) => !CLOSED_STAGES.includes(l.stage));
@@ -462,11 +477,11 @@
 
   // ── 칸반 ──
   function renderBoard() {
-    const typeF = $("#board-type-filter").value;
+    const typeF = fVal("#board-type-filter");
     const ownerF = $("#board-owner-filter").value;
-    const catF = $("#board-category-filter").value;
+    const catF = fVal("#board-category-filter");
     const showClosed = $("#board-show-closed").checked;
-    const flow = stagesFor($("#board-type-filter").value);
+    const flow = stagesFor(fVal("#board-type-filter"));
     const cols = showClosed ? [...flow, ...CLOSED_STAGES] : flow;
     const leads = state.leads.filter((l) =>
       (!typeF || l.type === typeF) && (!ownerF || l.owner === ownerF) && (!catF || l.category === catF));
@@ -537,10 +552,10 @@
   // ── 테이블 ──
   function renderTable() {
     const q = $("#table-search").value.trim().toLowerCase();
-    const typeF = $("#table-type-filter").value;
+    const typeF = fVal("#table-type-filter");
     const stageF = $("#table-stage-filter").value;
     const chF = $("#table-channel-filter").value;
-    const catF = $("#table-category-filter").value;
+    const catF = fVal("#table-category-filter");
     const ownerF = $("#table-owner-filter").value;
 
     // 채널 필터 옵션 동기화 (현재 데이터 기준)

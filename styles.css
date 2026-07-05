@@ -144,6 +144,23 @@ td.td-ch { text-align: left; }
 .filter-row select, .filter-row input[type="search"] { width: auto; min-width: 130px; }
 .chk { display: flex; align-items: center; gap: 6px; color: var(--muted); }
 .chk input { width: auto; }
+
+/* 버튼식 필터 그룹 */
+.btn-group { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.btn-group button {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.btn-group button:hover { color: var(--text); border-color: #b9bfce; }
+.btn-group button.active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
 .card {
   background: var(--card);
   border: 1px solid var(--border);
