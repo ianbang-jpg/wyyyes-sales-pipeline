@@ -507,7 +507,6 @@
       done: enteredCnt(["판매", "완료"], from, to),
       closed: enteredCnt(["보류", "제외"], from, to),
     });
-    const ROWS = [["created", "신규 등록"], ["moves", "단계 이동"], ["done", "성사 (판매·완료)"]];
     // 주간 비교용 세부 퍼널 (bad: 증가가 나쁜 신호)
     const FUNNEL_ROWS = [
       { k: "created", label: "신규 등록" },
@@ -536,16 +535,16 @@
       </table>
       <p class="muted cmp-note">단계 진입 수는 이 툴의 히스토리 기준 (월요일 시작)</p>`;
 
-    // 일간 / 주간 / 월간
+    // 일간 / 주간 / 월간 (세부 퍼널)
     const day = metrics(P.dayStart, null);
     const month = metrics(P.monthStart, null);
     $("#period-stats").innerHTML = `
       <table class="cmp-table">
         <thead><tr><th></th><th>오늘</th><th>이번 주</th><th>이번 달</th></tr></thead>
-        <tbody>${ROWS.map(([k, label]) =>
-          `<tr><td>${label}</td><td>${day[k]}</td><td>${cur[k]}</td><td>${month[k]}</td></tr>`).join("")}</tbody>
+        <tbody>${FUNNEL_ROWS.map(({ k, label }) =>
+          `<tr><td>${label}</td><td>${day[k]}</td><td class="cmp-cur">${cur[k]}</td><td>${month[k]}</td></tr>`).join("")}</tbody>
       </table>
-      <p class="muted cmp-note">단계 이동·성사는 이 툴에서 기록된 히스토리 기준</p>`;
+      <p class="muted cmp-note">단계 진입 수는 이 툴에서 기록된 히스토리 기준</p>`;
   }
 
   function groupBars(leads, keyFn, labelFn = esc) {
