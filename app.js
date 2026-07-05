@@ -493,26 +493,48 @@
     const acts = (data || []).filter((a) => leadIds.has(a.lead_id));
 
     const inRange = (d, from, to) => { const t = new Date(d); return t >= from && (!to || t < to); };
+    // 단계 변경 로그의 도착 단계 추출 ("발굴 → 컨택", "컨택 → 제외 (사유)" 모두 대응)
+    const moveTarget = (a) => { const m = /→ (\S+)/.exec(a.detail || ""); return m ? m[1] : null; };
+    const enteredCnt = (stages, from, to) =>
+      acts.filter((a) => a.action === "단계 변경" && inRange(a.created_at, from, to) && stages.includes(moveTarget(a))).length;
     const metrics = (from, to) => ({
       created: leads.filter((l) => inRange(l.created_at, from, to)).length,
       moves: acts.filter((a) => a.action === "단계 변경" && inRange(a.created_at, from, to)).length,
-      done: acts.filter((a) => a.action === "단계 변경" && /→ (판매|완료)$/.test(a.detail || "") && inRange(a.created_at, from, to)).length,
+      contact: enteredCnt(["컨택"], from, to),
+      reply: enteredCnt(["응답"], from, to),
+      nego: enteredCnt(["협의"], from, to),
+      commit: enteredCnt(["승인", "계약"], from, to),
+      done: enteredCnt(["판매", "완료"], from, to),
+      closed: enteredCnt(["보류", "제외"], from, to),
     });
     const ROWS = [["created", "신규 등록"], ["moves", "단계 이동"], ["done", "성사 (판매·완료)"]];
+    // 주간 비교용 세부 퍼널 (bad: 증가가 나쁜 신호)
+    const FUNNEL_ROWS = [
+      { k: "created", label: "신규 등록" },
+      { k: "contact", label: "컨택 진입" },
+      { k: "reply", label: "응답 확보" },
+      { k: "nego", label: "협의 진입" },
+      { k: "commit", label: "승인·계약" },
+      { k: "done", label: "성사 (판매·완료)" },
+      { k: "closed", label: "보류·제외", bad: true },
+    ];
 
-    // 전주 vs 이번 주
+    // 전주 vs 이번 주 (세부 퍼널)
     const prev = metrics(P.prevWeekStart, P.weekStart);
     const cur = metrics(P.weekStart, null);
     $("#week-compare").innerHTML = `
       <table class="cmp-table">
         <thead><tr><th></th><th>전주</th><th>이번 주</th><th>증감</th></tr></thead>
-        <tbody>${ROWS.map(([k, label]) => {
+        <tbody>${FUNNEL_ROWS.map(({ k, label, bad }) => {
           const d = cur[k] - prev[k];
-          const delta = d > 0 ? `<span class="delta up">▲ ${d}</span>`
-            : d < 0 ? `<span class="delta down">▼ ${-d}</span>` : `<span class="delta">–</span>`;
+          const upCls = bad ? "down" : "up";
+          const downCls = bad ? "up" : "down";
+          const delta = d > 0 ? `<span class="delta ${upCls}">▲ ${d}</span>`
+            : d < 0 ? `<span class="delta ${downCls}">▼ ${-d}</span>` : `<span class="delta">–</span>`;
           return `<tr><td>${label}</td><td>${prev[k]}</td><td class="cmp-cur">${cur[k]}</td><td>${delta}</td></tr>`;
         }).join("")}</tbody>
-      </table>`;
+      </table>
+      <p class="muted cmp-note">단계 진입 수는 이 툴의 히스토리 기준 (월요일 시작)</p>`;
 
     // 일간 / 주간 / 월간
     const day = metrics(P.dayStart, null);
