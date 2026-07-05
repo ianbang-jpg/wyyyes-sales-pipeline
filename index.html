@@ -287,6 +287,23 @@
     </div>
   </div>
 
+  <!-- 캘린더 날짜 팝오버 -->
+  <div id="daypop-backdrop" class="modal-backdrop hidden">
+    <div class="modal daypop">
+      <div class="modal-head">
+        <h2 id="daypop-title"></h2>
+        <button type="button" id="daypop-close" title="닫기">✕</button>
+      </div>
+      <div id="daypop-events" class="daypop-list"></div>
+      <h3 class="daypop-sub">📝 메모</h3>
+      <div id="daypop-notes" class="daypop-list"></div>
+      <form id="daypop-form" class="memo-form">
+        <input id="daypop-input" placeholder="이 날짜에 메모 추가…">
+        <button type="submit">추가</button>
+      </form>
+    </div>
+  </div>
+
   <!-- 상세 드로어 -->
   <div id="drawer-backdrop" class="drawer-backdrop hidden">
     <aside class="drawer">

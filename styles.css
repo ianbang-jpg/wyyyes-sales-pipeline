@@ -450,6 +450,31 @@ td.td-notes {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cal-ev:hover { background: color-mix(in srgb, var(--oc) 22%, #fff); }
+.cal-cell { cursor: pointer; }
+.cal-cell:hover { background: #f7f8fc; }
+.cal-cell.cal-today:hover { background: #eef2ff; }
+.cal-memo { --oc: #9a6b00; background: #fff6d9; color: #7a5a00; border-left-color: #d8b94a; }
+.cal-more {
+  font-size: 11px; font-weight: 700;
+  color: var(--muted); padding: 2px 6px;
+  border-radius: 5px; cursor: pointer;
+}
+.cal-more:hover { background: #eceef4; color: var(--text); }
+
+/* 날짜 팝오버 */
+.daypop { max-width: 440px; }
+.daypop-sub { font-size: 13px; color: var(--muted); margin: 18px 0 10px; }
+.daypop-list { display: flex; flex-direction: column; gap: 6px; }
+.daypop-list .fu-item { cursor: default; }
+.daypop-list .fu-item[data-id] { cursor: pointer; }
+.daypop-note .fu-name { font-weight: 500; }
+.note-del {
+  border: none; background: none;
+  color: #c3c8d4; font-size: 12px; padding: 2px 6px;
+  flex-shrink: 0;
+}
+.note-del:hover { color: var(--primary); border: none; }
+#daypop-form { margin-top: 10px; }
 
 /* ── 모달 헤더 ── */
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }

@@ -287,6 +287,20 @@
     $("#cal-prev").addEventListener("click", () => calShift(-1));
     $("#cal-next").addEventListener("click", () => calShift(1));
     $("#cal-today").addEventListener("click", () => { state.calMonth = null; renderCal(); });
+    $("#daypop-close").addEventListener("click", closeDayPop);
+    $("#daypop-backdrop").addEventListener("click", (e) => { if (e.target.id === "daypop-backdrop") closeDayPop(); });
+    $("#daypop-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const input = $("#daypop-input");
+      const text = input.value.trim();
+      if (!text || !dayPopDate) return;
+      input.value = "";
+      const { error } = await sb.from("calendar_notes").insert({ note_date: dayPopDate, text, author: me() });
+      if (error) { toast("메모 저장 실패: " + error.message); return; }
+      await renderCal();
+      renderDayPopNotes();
+      toast("메모를 추가했어요");
+    });
 
     // 보류/제외 표시 토글
     $("#board-show-closed").addEventListener("click", (e) => {
@@ -679,16 +693,10 @@
     { key: "next_action_due", icon: "📌", label: "액션 기한" },
   ];
 
-  function renderCal() {
-    const base = state.calMonth || new Date();
-    const year = base.getFullYear(), month = base.getMonth();
-    $("#cal-title").textContent = `${year}년 ${month + 1}월`;
+  const CAL_MAX_ITEMS = 3; // 셀당 표시 개수 (초과분은 '더 보기')
+  const dateKeyOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-    // 담당자 범례
-    $("#cal-legend").innerHTML = OWNERS.map((o) =>
-      `<span class="cal-owner"><span class="cal-dot" style="background:${ownerColor(o)}"></span>${esc(o)}</span>`).join("");
-
-    // 날짜별 이벤트 수집 (발굴/보류/제외 제외)
+  function calEvents() {
     const events = {}; // "YYYY-MM-DD" -> [{lead, icon, label}]
     state.leads.filter((l) => !CAL_EXCLUDED.includes(l.stage)).forEach((l) => {
       CAL_FIELDS.forEach((f) => {
@@ -697,27 +705,61 @@
         (events[d] = events[d] || []).push({ lead: l, icon: f.icon, label: f.label });
       });
     });
+    return events;
+  }
+
+  async function renderCal() {
+    const base = state.calMonth || new Date();
+    const year = base.getFullYear(), month = base.getMonth();
+    $("#cal-title").textContent = `${year}년 ${month + 1}월`;
+
+    // 담당자 범례
+    $("#cal-legend").innerHTML = OWNERS.map((o) =>
+      `<span class="cal-owner"><span class="cal-dot" style="background:${ownerColor(o)}"></span>${esc(o)}</span>`).join("");
+
+    const events = calEvents();
 
     // 월간 그리드 (일요일 시작)
     const first = new Date(year, month, 1);
     const gridStart = new Date(first);
     gridStart.setDate(1 - first.getDay());
+    const gridEnd = new Date(gridStart);
+    gridEnd.setDate(gridStart.getDate() + 41);
+
+    // 이 그리드 범위의 메모 로드
+    const { data: notes } = await sb.from("calendar_notes").select("*")
+      .gte("note_date", dateKeyOf(gridStart)).lte("note_date", dateKeyOf(gridEnd))
+      .order("created_at");
+    state.calNotes = {};
+    (notes || []).forEach((n) => { (state.calNotes[n.note_date] = state.calNotes[n.note_date] || []).push(n); });
+
     const today = todayStr();
     const cells = [];
     for (let i = 0; i < 42; i++) {
       const d = new Date(gridStart);
       d.setDate(gridStart.getDate() + i);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const key = dateKeyOf(d);
       const evs = events[key] || [];
+      const dayNotes = state.calNotes[key] || [];
       const other = d.getMonth() !== month;
+
+      const items = [
+        ...dayNotes.map((n) => `
+          <div class="cal-ev cal-memo" data-date="${key}" title="📝 ${esc(n.text)} (${esc(n.author || "")})">📝 ${esc(n.text)}</div>`),
+        ...evs.map((ev) => `
+          <div class="cal-ev" data-id="${ev.lead.id}" style="--oc:${ownerColor(ev.lead.owner)}"
+               title="${esc(ev.lead.name)} · ${ev.label} · ${esc(ev.lead.owner || "담당자 미지정")}">
+            ${ev.icon} ${esc(ev.lead.name)}
+          </div>`),
+      ];
+      const shown = items.slice(0, CAL_MAX_ITEMS);
+      const hidden = items.length - shown.length;
+
       cells.push(`
-        <div class="cal-cell ${other ? "cal-other" : ""} ${key === today ? "cal-today" : ""}">
+        <div class="cal-cell ${other ? "cal-other" : ""} ${key === today ? "cal-today" : ""}" data-date="${key}">
           <div class="cal-date ${d.getDay() === 0 ? "sun" : d.getDay() === 6 ? "sat" : ""}">${d.getDate()}</div>
-          ${evs.map((ev) => `
-            <div class="cal-ev" data-id="${ev.lead.id}" style="--oc:${ownerColor(ev.lead.owner)}"
-                 title="${esc(ev.lead.name)} · ${ev.label} · ${esc(ev.lead.owner || "담당자 미지정")}">
-              ${ev.icon} ${esc(ev.lead.name)}
-            </div>`).join("")}
+          ${shown.join("")}
+          ${hidden > 0 ? `<div class="cal-more" data-date="${key}">+${hidden} 더 보기</div>` : ""}
         </div>`);
     }
     $("#calendar").innerHTML =
@@ -725,8 +767,58 @@
         `<div class="cal-wd ${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${d}</div>`).join("")}</div>` +
       `<div class="cal-grid">${cells.join("")}</div>`;
 
-    $$("#calendar .cal-ev").forEach((el) =>
-      el.addEventListener("click", () => openDrawer(el.dataset.id)));
+    $$("#calendar .cal-ev[data-id]").forEach((el) =>
+      el.addEventListener("click", (e) => { e.stopPropagation(); openDrawer(el.dataset.id); }));
+    $$("#calendar .cal-ev.cal-memo, #calendar .cal-more").forEach((el) =>
+      el.addEventListener("click", (e) => { e.stopPropagation(); openDayPop(el.dataset.date); }));
+    $$("#calendar .cal-cell").forEach((el) =>
+      el.addEventListener("click", () => openDayPop(el.dataset.date)));
+  }
+
+  // ── 날짜 팝오버 (전체 목록 + 메모) ──
+  let dayPopDate = null;
+  function openDayPop(dateKey) {
+    dayPopDate = dateKey;
+    const [y, m, d] = dateKey.split("-").map(Number);
+    const wd = ["일", "월", "화", "수", "목", "금", "토"][new Date(y, m - 1, d).getDay()];
+    $("#daypop-title").textContent = `${m}월 ${d}일 (${wd})`;
+
+    const evs = (calEvents()[dateKey] || []);
+    $("#daypop-events").innerHTML = evs.map((ev) => `
+      <div class="fu-item" data-id="${ev.lead.id}">
+        <span class="cal-dot" style="background:${ownerColor(ev.lead.owner)}"></span>
+        <span class="fu-name">${ev.icon} ${esc(ev.lead.name)} <span class="muted">— ${ev.label} · ${esc(ev.lead.owner || "")}</span></span>
+        <span class="stage-chip stage-${ev.lead.stage}">${ev.lead.stage}</span>
+      </div>`).join("") || `<span class="muted">이 날짜의 일정이 없어요.</span>`;
+    $$("#daypop-events .fu-item").forEach((el) =>
+      el.addEventListener("click", () => { closeDayPop(); openDrawer(el.dataset.id); }));
+
+    renderDayPopNotes();
+    $("#daypop-backdrop").classList.remove("hidden");
+    $("#daypop-input").focus();
+  }
+
+  function renderDayPopNotes() {
+    const notes = state.calNotes?.[dayPopDate] || [];
+    $("#daypop-notes").innerHTML = notes.map((n) => `
+      <div class="fu-item daypop-note">
+        <span class="fu-name">${esc(n.text)}</span>
+        <span class="muted">${esc(n.author || "")}</span>
+        <button class="note-del" data-note="${n.id}" title="삭제">✕</button>
+      </div>`).join("") || `<span class="muted">메모 없음</span>`;
+    $$("#daypop-notes .note-del").forEach((btn) =>
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const { error } = await sb.from("calendar_notes").delete().eq("id", btn.dataset.note);
+        if (error) { toast("삭제 실패: " + error.message); return; }
+        await renderCal();
+        renderDayPopNotes();
+      }));
+  }
+
+  function closeDayPop() {
+    $("#daypop-backdrop").classList.add("hidden");
+    dayPopDate = null;
   }
 
   // ── 내 페이지 ──
