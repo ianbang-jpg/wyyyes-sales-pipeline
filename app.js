@@ -48,6 +48,7 @@
     selectMode: false,
     selected: new Set(),
     calMonth: null, // Date (해당 월 1일)
+    profiles: {}, // owner -> {avatar, memo}
   };
 
   const me = () => localStorage.getItem("sp_me") || CFG.OWNERS?.[0] || "팀";
@@ -171,9 +172,28 @@
     location.reload();
   });
 
+  async function loadProfiles() {
+    const { data } = await sb.from("profiles").select("*");
+    state.profiles = {};
+    (data || []).forEach((p) => { state.profiles[p.owner] = p; });
+    updateTopbarAvatar();
+  }
+
+  // 아바타: 이미지가 있으면 사진, 없으면 담당자 색 이니셜 원
+  function avatarHtml(owner) {
+    const p = state.profiles[owner];
+    if (p && p.avatar) return `<img src="${p.avatar}" alt="${esc(owner)}">`;
+    return `<span class="avatar-initial" style="background:${ownerColor(owner)}">${esc((owner || "?")[0])}</span>`;
+  }
+
+  function updateTopbarAvatar() {
+    $("#topbar-avatar").innerHTML = avatarHtml(me());
+  }
+
   async function enterApp() {
     $("#app").classList.remove("hidden");
     initControls();
+    loadProfiles();
     // #me=이름 해시 → 해당 팀원의 내 페이지로 진입
     const m = location.hash.match(/^#me=(.+)$/);
     if (m) {
@@ -233,7 +253,7 @@
     const meSel = $("#me-select");
     meSel.innerHTML = OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     meSel.value = me();
-    meSel.addEventListener("change", () => { localStorage.setItem("sp_me", meSel.value); renderAll(); });
+    meSel.addEventListener("change", () => { localStorage.setItem("sp_me", meSel.value); updateTopbarAvatar(); renderAll(); });
 
     // 탭
     $$(".tab-btn").forEach((btn) =>
@@ -306,6 +326,43 @@
     $("#board-show-closed").addEventListener("click", (e) => {
       e.currentTarget.classList.toggle("active");
       renderAll();
+    });
+
+    // 프로필 이미지 업로드 (128px 리사이즈 → data URL)
+    $("#my-avatar-btn").addEventListener("click", () => $("#my-avatar-input").click());
+    $("#my-avatar-input").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = async () => {
+        const size = 128;
+        const canvas = document.createElement("canvas");
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        const s0 = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width - s0) / 2, (img.height - s0) / 2, s0, s0, 0, 0, size, size);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        URL.revokeObjectURL(img.src);
+        const owner = me();
+        const { error } = await sb.from("profiles").upsert({ owner, avatar: dataUrl, updated_at: new Date().toISOString() });
+        if (error) { toast("이미지 저장 실패: " + error.message); return; }
+        state.profiles[owner] = { ...(state.profiles[owner] || {}), owner, avatar: dataUrl };
+        updateTopbarAvatar();
+        $("#my-avatar").innerHTML = avatarHtml(owner);
+        toast("프로필 이미지를 변경했어요");
+      };
+      img.src = URL.createObjectURL(file);
+      e.target.value = "";
+    });
+
+    // 내 메모장 자동 저장 (blur 시)
+    $("#my-memo").addEventListener("change", async (e) => {
+      const owner = me();
+      const memo = e.target.value;
+      const { error } = await sb.from("profiles").upsert({ owner, memo, updated_at: new Date().toISOString() });
+      if (error) { toast("메모 저장 실패: " + error.message); return; }
+      state.profiles[owner] = { ...(state.profiles[owner] || {}), owner, memo };
+      toast("메모를 저장했어요");
     });
 
     // 내 전용 링크 복사
@@ -825,6 +882,10 @@
   function renderMy() {
     const name = me();
     $("#my-title").textContent = `${name}님의 파이프라인`;
+    $("#my-avatar").innerHTML = avatarHtml(name);
+    // 메모 (입력 중에는 덮어쓰지 않음)
+    const memoEl = $("#my-memo");
+    if (document.activeElement !== memoEl) memoEl.value = state.profiles[name]?.memo || "";
     const mine = state.leads.filter((l) => l.owner === name);
     const active = mine.filter((l) => !CLOSED_STAGES.includes(l.stage));
     const today = todayStr();
