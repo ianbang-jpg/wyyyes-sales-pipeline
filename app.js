@@ -594,7 +594,10 @@
         <div class="board-col" data-stage="${stage}">
           <div class="board-col-head">
             <span><span class="stage-chip stage-${stage}">${stage}</span></span>
-            <span class="cnt">${cards.length}</span>
+            <span class="col-head-right">
+              <span class="cnt">${cards.length}</span>
+              <button type="button" class="col-add" data-add-stage="${stage}" title="이 단계로 바로 등록">+</button>
+            </span>
           </div>
           <div class="board-cards">
             ${cards.map((l) => `
@@ -617,6 +620,20 @@
           </div>
         </div>`;
     }).join("");
+
+    // 단계별 바로 등록 (+)
+    root.querySelectorAll(".col-add").forEach((btn) =>
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const stage = btn.dataset.addStage;
+        let type = containerSel === "#board" ? fVal("#board-type-filter") : "";
+        if (!type) {
+          const inD = STAGE_FLOW.dealer.includes(stage);
+          const inI = STAGE_FLOW.influencer.includes(stage);
+          type = inD && !inI ? "dealer" : inI && !inD ? "influencer" : "";
+        }
+        openModal(null, { stage, type });
+      }));
 
     // 드래그 & 드롭
     root.querySelectorAll(".lead-card").forEach((card) => {
@@ -717,7 +734,7 @@
   }
 
   // ── 등록/수정 모달 ──
-  function openModal(id) {
+  function openModal(id, preset = null) {
     state.editingId = id;
     const form = $("#lead-form");
     form.reset();
@@ -738,7 +755,9 @@
     } else {
       form.elements["followers"].innerHTML = followerOptions("");
       form.elements["owner"].value = me();
+      if (preset && preset.type) form.elements["type"].value = preset.type;
       toggleTypeFields();
+      if (preset && preset.stage) form.elements["stage"].value = preset.stage;
     }
     $("#modal-backdrop").classList.remove("hidden");
     form.elements["name"].focus();

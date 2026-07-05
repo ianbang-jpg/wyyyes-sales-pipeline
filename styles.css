@@ -276,6 +276,15 @@ td.td-ch { text-align: left; }
   padding: 2px 4px 10px;
 }
 .board-col-head .cnt { color: var(--muted); font-weight: 600; }
+.col-head-right { display: flex; align-items: center; gap: 6px; }
+.col-add {
+  width: 20px; height: 20px;
+  padding: 0; line-height: 1;
+  border-radius: 6px;
+  border: none; background: rgba(19, 27, 49, 0.08);
+  color: #5a6377; font-size: 14px; font-weight: 700;
+}
+.col-add:hover { background: var(--navy); color: #fff; }
 .board-cards { display: flex; flex-direction: column; gap: 8px; min-height: 30px; }
 .lead-card {
   background: var(--card);
