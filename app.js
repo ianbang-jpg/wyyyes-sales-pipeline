@@ -886,7 +886,7 @@
   // ── 내 페이지 ──
   function renderMy() {
     const name = me();
-    $("#my-title").textContent = `${name}님의 파이프라인`;
+    $("#my-title").textContent = name;
     $("#my-avatar").innerHTML = avatarHtml(name);
     // 메모 (입력 중에는 덮어쓰지 않음)
     const memoEl = $("#my-memo");
