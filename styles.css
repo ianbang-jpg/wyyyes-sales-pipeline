@@ -568,6 +568,13 @@ td.td-na .na-line { margin-top: 0; max-width: 220px; overflow: hidden; text-over
 }
 .avatar-lg { width: 52px; height: 52px; }
 .avatar-lg .avatar-initial { font-size: 22px; }
+.avatar-sm { width: 18px; height: 18px; }
+.avatar-sm .avatar-initial { font-size: 9px; }
+.owner-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: var(--text);
+  white-space: nowrap;
+}
 #topbar-avatar { border: 2px solid rgba(255, 255, 255, 0.25); }
 .avatar-btn {
   margin-top: 4px;

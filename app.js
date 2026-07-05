@@ -177,6 +177,7 @@
     state.profiles = {};
     (data || []).forEach((p) => { state.profiles[p.owner] = p; });
     updateTopbarAvatar();
+    renderAll();
   }
 
   // 아바타: 이미지가 있으면 사진, 없으면 담당자 색 이니셜 원
@@ -189,6 +190,10 @@
   function updateTopbarAvatar() {
     $("#topbar-avatar").innerHTML = avatarHtml(me());
   }
+
+  const ownerBadge = (owner) => owner
+    ? `<span class="owner-badge"><span class="avatar avatar-sm">${avatarHtml(owner)}</span>${esc(owner)}</span>`
+    : "";
 
   async function enterApp() {
     $("#app").classList.remove("hidden");
@@ -982,7 +987,7 @@
                   ${selectable ? `<input type="checkbox" class="card-check" ${state.selected.has(l.id) ? "checked" : ""}>` : ""}
                   ${starBtn(l)}
                   <span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span>
-                  <span class="lc-owner">${esc(l.owner || "")}</span>
+                  <span class="lc-owner">${ownerBadge(l.owner)}</span>
                 </div>
                 <div class="lc-title">${esc(l.name)}</div>
                 <div class="lc-meta">
@@ -1109,7 +1114,7 @@
         <td class="td-notes" title="${esc(l.notes || "")}">${esc(l.notes || "")}</td>
         <td class="td-na">${naLine(l)}</td>
         <td>${fmtDate(l.contact_date)}</td>
-        <td>${esc(l.owner || "")}</td>
+        <td>${ownerBadge(l.owner)}</td>
         <td class="muted">${fmtDate(l.updated_at)}</td>
       </tr>`).join("");
 
