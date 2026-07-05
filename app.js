@@ -216,7 +216,10 @@
       renderAll();
     });
   }
-  const fVal = (sel) => $(sel).dataset.value || "";
+  const fVal = (sel) => {
+    const el = $(sel);
+    return el.classList.contains("btn-group") ? (el.dataset.value || "") : el.value;
+  };
 
   // ── 컨트롤 초기화 ──
   function initControls() {
@@ -292,16 +295,17 @@
     $("#channel-options").innerHTML = (CFG.CHANNELS || []).map((c) => `<option value="${esc(c)}">`).join("");
     $("#table-stage-filter").innerHTML += [...ALL_STAGES, ...CLOSED_STAGES].map((s) => `<option>${s}</option>`).join("");
     const typeOpts = [{ value: "", label: "전체" }, { value: "dealer", label: "딜러" }, { value: "influencer", label: "인플루언서" }];
-    const catOpts = [{ value: "", label: "전체" }, ...(CFG.CATEGORIES || []).map((c) => ({ value: c, label: c }))];
     ["#dash-type-filter", "#board-type-filter", "#table-type-filter"].forEach((sel) => initBtnGroup(sel, typeOpts));
-    ["#dash-category-filter", "#board-category-filter", "#table-category-filter"].forEach((sel) => initBtnGroup(sel, catOpts));
+    ["#dash-category-filter", "#board-category-filter", "#table-category-filter"].forEach((sel) => {
+      $(sel).innerHTML += (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
+    });
     ["#table-owner-filter", "#board-owner-filter", "#dash-owner-filter"].forEach((sel) => {
       $(sel).innerHTML += OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     });
 
     // 필터 이벤트
-    ["#dash-owner-filter", "#board-owner-filter", "#board-search",
-     "#table-search", "#table-stage-filter", "#table-channel-filter", "#table-owner-filter"]
+    ["#dash-owner-filter", "#dash-category-filter", "#board-owner-filter", "#board-category-filter", "#board-search",
+     "#table-search", "#table-stage-filter", "#table-channel-filter", "#table-category-filter", "#table-owner-filter"]
       .forEach((sel) => $(sel).addEventListener("input", renderAll));
 
     // 유형별 필드 토글

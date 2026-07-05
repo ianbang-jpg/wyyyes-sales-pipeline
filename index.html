@@ -54,7 +54,7 @@
     <main id="tab-dashboard" class="tab-panel">
       <div class="filter-bar">
         <div class="f-group"><span class="f-label">유형</span><div class="btn-group seg" id="dash-type-filter" data-value=""></div></div>
-        <div class="f-group"><span class="f-label">카테고리</span><div class="btn-group" id="dash-category-filter" data-value=""></div></div>
+        <div class="f-group"><span class="f-label">카테고리</span><select id="dash-category-filter"><option value="">전체</option></select></div>
         <div class="f-group"><span class="f-label">담당자</span><select id="dash-owner-filter"><option value="">전체</option></select></div>
       </div>
       <section class="kpi-row" id="kpi-row"></section>
@@ -124,7 +124,7 @@
       <div class="filter-bar">
         <input type="search" id="board-search" placeholder="🔍 검색 (입력 즉시 필터)">
         <div class="f-group"><span class="f-label">유형</span><div class="btn-group seg" id="board-type-filter" data-value=""></div></div>
-        <div class="f-group"><span class="f-label">카테고리</span><div class="btn-group" id="board-category-filter" data-value=""></div></div>
+        <div class="f-group"><span class="f-label">카테고리</span><select id="board-category-filter"><option value="">전체</option></select></div>
         <div class="f-group"><span class="f-label">담당자</span><select id="board-owner-filter"><option value="">전체</option></select></div>
         <div class="f-group"><button type="button" id="board-show-closed" class="toggle-btn">보류/제외 표시</button></div>
         <div class="f-group"><button type="button" id="board-select-mode" class="toggle-btn">☑️ 선택</button></div>
@@ -146,7 +146,7 @@
       <div class="filter-bar">
         <input type="search" id="table-search" placeholder="🔍 이름/상품/메모 검색">
         <div class="f-group"><span class="f-label">유형</span><div class="btn-group seg" id="table-type-filter" data-value=""></div></div>
-        <div class="f-group"><span class="f-label">카테고리</span><div class="btn-group" id="table-category-filter" data-value=""></div></div>
+        <div class="f-group"><span class="f-label">카테고리</span><select id="table-category-filter"><option value="">전체</option></select></div>
         <div class="f-group">
           <select id="table-stage-filter"><option value="">전체 단계</option></select>
           <select id="table-channel-filter"><option value="">전체 채널</option></select>
