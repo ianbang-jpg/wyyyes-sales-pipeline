@@ -217,8 +217,18 @@ td.td-ch { text-align: left; }
   box-shadow: var(--shadow);
 }
 .lead-card:active { cursor: grabbing; }
-.lead-card .lc-name { font-weight: 700; margin-bottom: 4px; display: flex; gap: 6px; align-items: center; }
-.lead-card .lc-meta { color: var(--muted); font-size: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.lead-card .lc-top { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.lead-card .lc-owner { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 600; }
+.lead-card .lc-title {
+  font-weight: 700; font-size: 14px;
+  line-height: 1.35; word-break: keep-all;
+  margin-bottom: 7px;
+}
+.lead-card .lc-meta {
+  color: var(--muted); font-size: 12px;
+  display: flex; gap: 5px; flex-wrap: wrap; align-items: center;
+}
+.lead-card .lc-chip { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 .type-badge {
   font-size: 10px; font-weight: 700;
   padding: 2px 6px; border-radius: 999px;

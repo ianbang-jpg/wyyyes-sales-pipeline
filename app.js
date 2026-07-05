@@ -483,18 +483,17 @@
           <div class="board-cards">
             ${cards.map((l) => `
               <div class="lead-card" draggable="true" data-id="${l.id}">
-                <div class="lc-name">
+                <div class="lc-top">
                   ${starBtn(l)}
                   <span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span>
-                  ${esc(l.name)}
-                  ${rotBadge(l)}
+                  <span class="lc-owner">${esc(l.owner || "")}</span>
                 </div>
+                <div class="lc-title">${esc(l.name)}</div>
                 <div class="lc-meta">
-                  ${l.channel ? `<span>${chIcon(l.channel)}</span>` : ""}
+                  ${l.channel ? `<span class="lc-chip">${chIcon(l.channel)}</span>` : ""}
                   ${ctChip(l.channel_type)}
                   ${catChip(l.category)}
-                  ${l.followers ? `<span>👥 ${followerLabel(l.followers)}</span>` : ""}
-                  ${l.owner ? `<span>${esc(l.owner)}</span>` : ""}
+                  ${l.followers ? `<span class="lc-chip">👥 ${followerLabel(l.followers)}</span>` : ""}
                 </div>
                 ${naLine(l)}
                 ${l.notes ? `<div class="lc-notes">${esc(l.notes)}</div>` : ""}
@@ -582,7 +581,7 @@
     $("#leads-table tbody").innerHTML = rows.map((l) => `
       <tr data-id="${l.id}">
         <td class="td-star">${starBtn(l)}</td>
-        <td class="td-name">${esc(l.name)} ${rotBadge(l)}</td>
+        <td class="td-name">${esc(l.name)}</td>
         <td><span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span></td>
         <td>${catChip(l.category)}</td>
         <td><span class="stage-chip stage-${l.stage}">${l.stage}</span></td>
