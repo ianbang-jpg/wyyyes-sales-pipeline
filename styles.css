@@ -411,6 +411,46 @@ td.td-notes {
 .fu-item .fu-name { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fu-item .fu-days { color: var(--primary); font-size: 12px; font-weight: 700; flex-shrink: 0; }
 
+/* ── 모달 헤더 ── */
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.modal-head h2 { margin: 0; }
+#modal-close { border: none; background: none; font-size: 15px; color: var(--muted); padding: 4px 8px; }
+#modal-close:hover { color: var(--text); border: none; }
+
+/* ── 일괄 선택 ── */
+.bulk-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: #10162b;
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 14px;
+}
+.bulk-bar .bulk-count { font-weight: 800; font-size: 14px; }
+.bulk-bar .bulk-hint { font-size: 12px; color: #8b93ab; }
+.bulk-bar .spacer { flex: 1; }
+.bulk-bar select {
+  width: auto; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff; font-size: 12px; font-weight: 600;
+}
+.bulk-bar select option { color: var(--text); background: #fff; }
+.bulk-bar button { background: transparent; border-color: rgba(255, 255, 255, 0.25); color: #dfe3ee; font-size: 12px; }
+.bulk-bar button:hover { border-color: #fff; color: #fff; }
+.bulk-bar button.danger { color: #ff8a94; border-color: rgba(255, 122, 135, 0.5); }
+.bulk-bar button.danger:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+.card-check { width: 15px; height: 15px; accent-color: var(--navy); pointer-events: none; flex-shrink: 0; }
+.lead-card.card-selected { outline: 2px solid var(--navy); outline-offset: -1px; background: #f2f5ff; }
+.lead-card.marquee-hover { outline: 2px dashed var(--navy); outline-offset: -1px; }
+.marquee {
+  position: absolute; z-index: 60;
+  background: rgba(19, 27, 49, 0.08);
+  border: 1px solid var(--navy);
+  pointer-events: none;
+}
+
 /* 중요 표시 (★) */
 .star-btn {
   border: none; background: none;

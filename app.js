@@ -40,6 +40,8 @@
     drawerId: null,
     sortKey: "updated_at",
     sortDir: "desc",
+    selectMode: false,
+    selected: new Set(),
   };
 
   const me = () => localStorage.getItem("sp_me") || CFG.OWNERS?.[0] || "팀";
@@ -228,6 +230,45 @@
     $$(".tab-btn").forEach((btn) =>
       btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
 
+    // 일괄 선택 모드
+    $("#board-select-mode").addEventListener("click", (e) => {
+      state.selectMode = !state.selectMode;
+      e.currentTarget.classList.toggle("active", state.selectMode);
+      if (!state.selectMode) state.selected.clear();
+      updateBulkBar();
+      renderAll();
+    });
+    $("#bulk-clear").addEventListener("click", () => { state.selected.clear(); updateBulkBar(); renderBoard(); });
+    $("#bulk-category").innerHTML += (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
+    $("#bulk-stage").innerHTML += [...ALL_STAGES, ...CLOSED_STAGES].map((st) => `<option>${st}</option>`).join("");
+    $("#bulk-category").addEventListener("change", async (e) => {
+      const v = e.target.value; e.target.value = "";
+      if (!v) return;
+      await bulkApply({ category: v }, "정보 수정", `카테고리 → ${v} (일괄)`, `카테고리를 '${v}'(으)로 변경`);
+    });
+    $("#bulk-stage").addEventListener("change", async (e) => {
+      const v = e.target.value; e.target.value = "";
+      if (!v) return;
+      const patch = { stage: v, stage_changed_at: new Date().toISOString() };
+      if (CLOSED_STAGES.includes(v)) {
+        const reason = window.prompt(`'${v}' 사유를 입력해주세요 (선택):`, "");
+        if (reason !== null && reason.trim()) patch.closed_reason = reason.trim();
+      }
+      await bulkApply(patch, "단계 변경", `→ ${v} (일괄)`, `'${v}' 단계로 이동`);
+    });
+    $("#bulk-delete").addEventListener("click", async () => {
+      const ids = [...state.selected];
+      if (!ids.length) { toast("선택된 카드가 없어요"); return; }
+      if (!confirm(`선택한 ${ids.length}건을 삭제할까요? 히스토리도 함께 삭제됩니다.`)) return;
+      const { error } = await sb.from("leads").delete().in("id", ids);
+      if (error) { toast("삭제 실패: " + error.message); return; }
+      toast(`${ids.length}건 삭제했어요`);
+      state.selected.clear();
+      updateBulkBar();
+      loadLeads();
+    });
+    initMarquee();
+
     // 보류/제외 표시 토글
     $("#board-show-closed").addEventListener("click", (e) => {
       e.currentTarget.classList.toggle("active");
@@ -270,6 +311,7 @@
     $("#add-btn").addEventListener("click", () => openModal(null));
     $("#export-btn").addEventListener("click", exportCsv);
     $("#modal-cancel").addEventListener("click", closeModal);
+    $("#modal-close").addEventListener("click", closeModal);
     $("#modal-backdrop").addEventListener("click", (e) => { if (e.target.id === "modal-backdrop") closeModal(); });
     $("#modal-delete").addEventListener("click", () => deleteLead());
     $("#lead-form").addEventListener("submit", saveLead);
@@ -507,6 +549,86 @@
   }
 
   // ── 칸반 ──
+  // ── 일괄 선택/처리 ──
+  function updateBulkBar() {
+    $("#bulk-bar").classList.toggle("hidden", !state.selectMode);
+    $("#bulk-count").textContent = `${state.selected.size}개 선택`;
+  }
+
+  function toggleSelect(id) {
+    if (state.selected.has(id)) state.selected.delete(id);
+    else state.selected.add(id);
+    updateBulkBar();
+    const card = document.querySelector(`#board .lead-card[data-id="${id}"]`);
+    if (card) {
+      card.classList.toggle("card-selected", state.selected.has(id));
+      const cb = card.querySelector(".card-check");
+      if (cb) cb.checked = state.selected.has(id);
+    }
+  }
+
+  async function bulkApply(patch, action, detail, label) {
+    const ids = [...state.selected];
+    if (!ids.length) { toast("선택된 카드가 없어요"); return; }
+    const { error } = await sb.from("leads").update(patch).in("id", ids);
+    if (error) { toast("실패: " + error.message); return; }
+    await sb.from("activities").insert(ids.map((id) => ({ lead_id: id, action, detail, actor: me() })));
+    toast(`${ids.length}건 ${label}했어요`);
+    state.selected.clear();
+    updateBulkBar();
+    loadLeads();
+  }
+
+  // 빈 공간 드래그로 범위 선택 (마퀴)
+  let marqueeSuppressClick = false;
+  function initMarquee() {
+    const board = $("#board");
+    let startX = 0, startY = 0, rect = null, active = false;
+
+    board.addEventListener("mousedown", (e) => {
+      if (!state.selectMode || e.button !== 0) return;
+      if (e.target.closest(".col-add, .star-btn, button")) return;
+      startX = e.pageX; startY = e.pageY; active = false;
+
+      const onMove = (ev) => {
+        if (!active && Math.hypot(ev.pageX - startX, ev.pageY - startY) < 5) return;
+        if (!active) {
+          active = true;
+          rect = document.createElement("div");
+          rect.className = "marquee";
+          document.body.appendChild(rect);
+        }
+        const x = Math.min(startX, ev.pageX), y = Math.min(startY, ev.pageY);
+        const w = Math.abs(ev.pageX - startX), h = Math.abs(ev.pageY - startY);
+        Object.assign(rect.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
+        // 실시간 하이라이트
+        board.querySelectorAll(".lead-card").forEach((card) => {
+          const b = card.getBoundingClientRect();
+          const bx = b.left + scrollX, by = b.top + scrollY;
+          const hit = bx < x + w && bx + b.width > x && by < y + h && by + b.height > y;
+          card.classList.toggle("marquee-hover", hit);
+        });
+        ev.preventDefault();
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        if (!active) return;
+        board.querySelectorAll(".lead-card.marquee-hover").forEach((card) => {
+          card.classList.remove("marquee-hover");
+          state.selected.add(card.dataset.id);
+        });
+        rect.remove(); rect = null;
+        updateBulkBar();
+        renderBoard();
+        marqueeSuppressClick = true;
+        setTimeout(() => { marqueeSuppressClick = false; }, 100);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  }
+
   // ── 내 페이지 ──
   function renderMy() {
     const name = me();
@@ -587,6 +709,7 @@
   // 칸반 렌더 공용 (보드 탭 / 내 페이지)
   function renderBoardInto(containerSel, leads, cols) {
     const root = $(containerSel);
+    const selectable = containerSel === "#board" && state.selectMode;
     root.innerHTML = cols.map((stage) => {
       const cards = leads.filter((l) => l.stage === stage)
         .sort((a, b) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0));
@@ -601,8 +724,9 @@
           </div>
           <div class="board-cards">
             ${cards.map((l) => `
-              <div class="lead-card" draggable="true" data-id="${l.id}">
+              <div class="lead-card ${selectable && state.selected.has(l.id) ? "card-selected" : ""}" draggable="${selectable ? "false" : "true"}" data-id="${l.id}">
                 <div class="lc-top">
+                  ${selectable ? `<input type="checkbox" class="card-check" ${state.selected.has(l.id) ? "checked" : ""}>` : ""}
                   ${starBtn(l)}
                   <span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span>
                   <span class="lc-owner">${esc(l.owner || "")}</span>
@@ -635,10 +759,17 @@
         openModal(null, { stage, type });
       }));
 
-    // 드래그 & 드롭
+    // 드래그 & 드롭 / 선택 모드
     root.querySelectorAll(".lead-card").forEach((card) => {
       card.addEventListener("dragstart", (e) => e.dataTransfer.setData("text/plain", card.dataset.id));
-      card.addEventListener("click", () => openDrawer(card.dataset.id));
+      card.addEventListener("click", () => {
+        if (selectable) {
+          if (marqueeSuppressClick) return;
+          toggleSelect(card.dataset.id);
+          return;
+        }
+        openDrawer(card.dataset.id);
+      });
     });
     root.querySelectorAll(".board-col").forEach((col) => {
       col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("drag-over"); });

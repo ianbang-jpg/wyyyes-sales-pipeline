@@ -127,6 +127,16 @@
         <div class="f-group"><span class="f-label">카테고리</span><div class="btn-group" id="board-category-filter" data-value=""></div></div>
         <div class="f-group"><span class="f-label">담당자</span><select id="board-owner-filter"><option value="">전체</option></select></div>
         <div class="f-group"><button type="button" id="board-show-closed" class="toggle-btn">보류/제외 표시</button></div>
+        <div class="f-group"><button type="button" id="board-select-mode" class="toggle-btn">☑️ 선택</button></div>
+      </div>
+      <div id="bulk-bar" class="bulk-bar hidden">
+        <span id="bulk-count" class="bulk-count">0개 선택</span>
+        <span class="bulk-hint muted">카드 클릭 또는 빈 공간 드래그로 선택</span>
+        <span class="spacer"></span>
+        <select id="bulk-category"><option value="">카테고리 변경…</option></select>
+        <select id="bulk-stage"><option value="">단계 이동…</option></select>
+        <button id="bulk-delete" class="danger">삭제</button>
+        <button id="bulk-clear">선택 해제</button>
       </div>
       <div id="board" class="board"></div>
     </main>
@@ -173,7 +183,10 @@
   <!-- 등록/수정 모달 -->
   <div id="modal-backdrop" class="modal-backdrop hidden">
     <div class="modal">
-      <h2 id="modal-title">신규 등록</h2>
+      <div class="modal-head">
+        <h2 id="modal-title">신규 등록</h2>
+        <button type="button" id="modal-close" title="닫기">✕</button>
+      </div>
       <form id="lead-form">
         <div class="form-grid">
           <label>유형*
