@@ -259,7 +259,7 @@
     });
 
     // 필터 이벤트
-    ["#dash-owner-filter", "#board-owner-filter",
+    ["#dash-owner-filter", "#board-owner-filter", "#board-search",
      "#table-search", "#table-stage-filter", "#table-channel-filter", "#table-owner-filter"]
       .forEach((sel) => $(sel).addEventListener("input", renderAll));
 
@@ -575,10 +575,12 @@
     const ownerF = $("#board-owner-filter").value;
     const catF = fVal("#board-category-filter");
     const showClosed = $("#board-show-closed").classList.contains("active");
+    const q = $("#board-search").value.trim().toLowerCase();
     const flow = stagesFor(fVal("#board-type-filter"));
     const cols = showClosed ? [...flow, ...CLOSED_STAGES] : flow;
     const leads = state.leads.filter((l) =>
-      (!typeF || l.type === typeF) && (!ownerF || l.owner === ownerF) && (!catF || l.category === catF));
+      (!typeF || l.type === typeF) && (!ownerF || l.owner === ownerF) && (!catF || l.category === catF) &&
+      (!q || [l.name, l.main_products, l.notes, l.region, l.nickname, l.next_action].join(" ").toLowerCase().includes(q)));
     renderBoardInto("#board", leads, cols);
   }
 

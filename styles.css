@@ -133,6 +133,7 @@ td.td-ch { text-align: left; }
   border-color: rgba(255, 255, 255, 0.22);
   color: #fff;
 }
+.topbar .my-btn { border: none; white-space: nowrap; }
 #me-select option { color: var(--text); background: #fff; }
 
 /* ── 공통 레이아웃 ── */
