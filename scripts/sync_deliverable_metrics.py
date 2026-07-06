@@ -59,8 +59,32 @@ def parse_compact_num(s):
     return int(n * unit)
 
 
+def yt_comment_count(video_id):
+    """innertube next 엔드포인트의 댓글 패널 헤더에서 댓글 수 추출"""
+    body = json.dumps({
+        "context": {"client": {"clientName": "WEB", "clientVersion": "2.20250701.01.00", "hl": "ko"}},
+        "videoId": video_id,
+    }).encode()
+    req = urllib.request.Request("https://www.youtube.com/youtubei/v1/next?prettyPrint=false",
+        data=body, headers={"Content-Type": "application/json", "User-Agent": UA})
+    try:
+        resp = json.loads(urllib.request.urlopen(req, timeout=15).read())
+    except Exception:
+        return None
+    for ep in resp.get("engagementPanels", []):
+        r = ep.get("engagementPanelSectionListRenderer", {})
+        if r.get("targetId") != "engagement-panel-comments-section":
+            continue
+        try:
+            runs = r["header"]["engagementPanelTitleHeaderRenderer"]["contextualInfo"]["runs"]
+            return parse_compact_num(runs[0]["text"])
+        except (KeyError, IndexError):
+            pass
+    return None
+
+
 def fetch_youtube(url):
-    """watch HTML에서 조회수/좋아요/댓글 파싱 (조회수는 안정적, 나머지는 best-effort)"""
+    """watch HTML에서 조회수/좋아요 파싱 + next API로 댓글 수"""
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Language": "ko"})
     try:
         html = urllib.request.urlopen(req, timeout=15).read().decode("utf-8", "ignore")
@@ -76,12 +100,12 @@ def fetch_youtube(url):
         m = re.search(r'좋아요 ([\d,.만천억KM]+)개', html)
     if m:
         out["likes"] = parse_compact_num(m.group(1))
-    # 댓글수
-    m = re.search(r'"commentCount"\s*:\s*\{[^}]*?"simpleText"\s*:\s*"([\d,.만천KM]+)', html)
-    if not m:
-        m = re.search(r'"commentCount"\s*:\s*"?(\d[\d,]*)"?', html)
-    if m:
-        out["comments"] = parse_compact_num(m.group(1))
+    # 댓글수: 초기 HTML에 없음 → next API의 댓글 패널 헤더에서 조회
+    vid = re.search(r"(?:youtu\.be/|v=|shorts/|embed/)([\w-]{11})", url)
+    if vid:
+        c = yt_comment_count(vid.group(1))
+        if c is not None:
+            out["comments"] = c
     return out
 
 
