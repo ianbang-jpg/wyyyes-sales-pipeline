@@ -134,6 +134,10 @@ def parse_instagram(raw):
     m = re.search(r"([\d,.만천KM]+)\s*views", og, re.I) or re.search(r"조회(?:수)?\s*([\d,.만천억KM]+)회?", body)
     if m:
         out["views"] = parse_compact_num(m.group(1))
+    # 공유수 (릴스에서 노출되는 경우만 — 피드 게시물은 플랫폼 비공개)
+    m = re.search(r"([\d,.만천KM]+)\s*shares?", og, re.I) or re.search(r"공유\s*([\d,.만천KM]+)", body)
+    if m:
+        out["shares"] = parse_compact_num(m.group(1))
     return out
 
 

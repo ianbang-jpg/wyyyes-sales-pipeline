@@ -848,7 +848,7 @@
               ${d.views ? `<span title="조회수">👁 ${fmtNum(d.views)}</span>` : ""}
               ${d.likes ? `<span title="좋아요">❤️ ${fmtNum(d.likes)}</span>` : ""}
               ${d.comments ? `<span title="댓글수">💬 ${fmtNum(d.comments)}</span>` : ""}
-              ${d.shares ? `<span title="공유수">↗ ${fmtNum(d.shares)}</span>` : ""}
+              ${d.shares ? `<span title="공유·리그램 수 (수동 입력)">↗ ${fmtNum(d.shares)}</span>` : ""}
             </div>` : ""}
             <div class="deliv-sub muted">
               ${d.posted_at ? `게시 ${fmtDate(d.posted_at)}` : ""} ${d.author ? `· ${esc(d.author)}` : ""}
@@ -897,6 +897,7 @@
       $("#deliv-url").value = edit.url;
       $("#deliv-title").value = edit.title || "";
       $("#deliv-date").value = edit.posted_at || "";
+      $("#deliv-shares").value = edit.shares ?? "";
     } else {
       $("#deliv-date").value = todayStr();
     }
@@ -914,10 +915,12 @@
     const leadId = lead.id;
     const url = $("#deliv-url").value.trim();
     if (!url) return;
+    const sharesV = $("#deliv-shares").value;
     const payload = {
       lead_id: leadId, url,
       title: $("#deliv-title").value.trim() || null,
       posted_at: $("#deliv-date").value || null,
+      shares: sharesV === "" ? null : Number(sharesV),
     };
     if (delivEditId) {
       const { error } = await sb.from("deliverables").update(payload).eq("id", delivEditId);
