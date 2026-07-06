@@ -259,8 +259,9 @@
       </div>
       <form id="deliv-form">
         <div class="form-grid">
-          <label class="span2">인플루언서*
-            <select id="deliv-lead" required></select>
+          <label class="span2">인플루언서* <span class="muted">(이름 검색)</span>
+            <input id="deliv-lead-input" list="deliv-lead-options" required placeholder="이름 입력하면 자동완성" autocomplete="off">
+            <datalist id="deliv-lead-options"></datalist>
           </label>
           <label class="span2">콘텐츠 링크*
             <input id="deliv-url" type="url" required placeholder="https://youtube.com/… 또는 instagram.com/…">
@@ -271,19 +272,8 @@
           <label>게시일
             <input id="deliv-date" type="date">
           </label>
-          <label>조회수
-            <input id="deliv-views" type="number" min="0" placeholder="예: 12000">
-          </label>
-          <label>좋아요
-            <input id="deliv-likes" type="number" min="0">
-          </label>
-          <label>댓글수
-            <input id="deliv-comments" type="number" min="0">
-          </label>
-          <label>공유수
-            <input id="deliv-shares" type="number" min="0">
-          </label>
         </div>
+        <p class="muted deliv-hint">조회수·좋아요·댓글 지표는 링크에서 자동 수집됩니다 ("결과물 지표 동기화" 실행 시)</p>
         <div class="modal-actions">
           <span class="spacer"></span>
           <button type="button" id="deliv-cancel">취소</button>

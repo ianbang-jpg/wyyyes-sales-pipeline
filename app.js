@@ -852,6 +852,7 @@
             </div>` : ""}
             <div class="deliv-sub muted">
               ${d.posted_at ? `게시 ${fmtDate(d.posted_at)}` : ""} ${d.author ? `· ${esc(d.author)}` : ""}
+              ${d.metrics_synced_at ? `· 지표 ${fmtDate(d.metrics_synced_at).slice(5)}` : ""}
               <button class="note-del deliv-edit" data-edit="${d.id}" title="수정" style="margin-left:auto">✏️</button>
               <button class="note-del deliv-del" data-del="${d.id}" title="삭제">✕</button>
             </div>
@@ -879,25 +880,23 @@
   }
 
   let delivEditId = null;
+  function delivCandidates(edit = null) {
+    return state.leads.filter((l) =>
+      l.type === "influencer" && (["진행", "완료"].includes(l.stage) || (edit && l.id === edit.lead_id)));
+  }
   function openDelivModal(edit = null) {
     delivEditId = edit ? edit.id : null;
     $("#deliv-modal-title").textContent = edit ? "협업 결과물 수정" : "협업 결과물 등록";
-    // 진행/완료 단계 인플루언서만 (수정 시 기존 대상은 유지)
-    const infs = state.leads.filter((l) =>
-      l.type === "influencer" && (["진행", "완료"].includes(l.stage) || (edit && l.id === edit.lead_id)))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    $("#deliv-lead").innerHTML = `<option value=""></option>` +
-      infs.map((l) => `<option value="${l.id}">${esc(l.name)} (${l.stage}${l.owner ? " · " + esc(l.owner) : ""})</option>`).join("");
+    const infs = delivCandidates(edit).sort((a, b) => a.name.localeCompare(b.name));
+    $("#deliv-lead-options").innerHTML =
+      infs.map((l) => `<option value="${esc(l.name)}">${l.stage}${l.owner ? " · " + esc(l.owner) : ""}</option>`).join("");
     $("#deliv-form").reset();
     if (edit) {
-      $("#deliv-lead").value = edit.lead_id;
+      const lead = state.leads.find((l) => l.id === edit.lead_id);
+      $("#deliv-lead-input").value = lead ? lead.name : "";
       $("#deliv-url").value = edit.url;
       $("#deliv-title").value = edit.title || "";
       $("#deliv-date").value = edit.posted_at || "";
-      $("#deliv-views").value = edit.views ?? "";
-      $("#deliv-likes").value = edit.likes ?? "";
-      $("#deliv-comments").value = edit.comments ?? "";
-      $("#deliv-shares").value = edit.shares ?? "";
     } else {
       $("#deliv-date").value = todayStr();
     }
@@ -907,18 +906,18 @@
 
   async function saveDeliv(e) {
     e.preventDefault();
-    const leadId = $("#deliv-lead").value;
+    const nameInput = $("#deliv-lead-input").value.trim();
+    const edit = delivEditId ? state.deliverables.find((x) => x.id === delivEditId) : null;
+    const norm2 = (x) => String(x || "").replace(/\s+/g, "").toLowerCase();
+    const lead = delivCandidates(edit).find((l) => norm2(l.name) === norm2(nameInput));
+    if (!lead) { alert(`"${nameInput}" — 진행·완료 단계 인플루언서 중에 없어요. 목록에서 선택해주세요.`); return; }
+    const leadId = lead.id;
     const url = $("#deliv-url").value.trim();
-    if (!leadId || !url) return;
-    const num = (sel) => { const v = $(sel).value; return v === "" ? null : Number(v); };
+    if (!url) return;
     const payload = {
       lead_id: leadId, url,
       title: $("#deliv-title").value.trim() || null,
       posted_at: $("#deliv-date").value || null,
-      views: num("#deliv-views"),
-      likes: num("#deliv-likes"),
-      comments: num("#deliv-comments"),
-      shares: num("#deliv-shares"),
     };
     if (delivEditId) {
       const { error } = await sb.from("deliverables").update(payload).eq("id", delivEditId);
