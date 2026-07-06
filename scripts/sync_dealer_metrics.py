@@ -78,11 +78,21 @@ def main():
     leads = sb("GET", "/rest/v1/leads?select=id,name,nickname,extra,stage&type=eq.dealer", token=token)
     print(f"딜러 카드 {len(leads)}건")
 
-    # 전체 딜러 메트릭 (최대 5000)
-    data = cli(["data-extraction", "sellers-with-metrics", "--limit", "5000"])
-    sellers = data.get("result") if isinstance(data, dict) else None
-    if isinstance(sellers, dict):
-        sellers = sellers.get("items") or sellers.get("list") or []
+    # 전체 딜러 메트릭 (5000건씩 전체 페이지네이션)
+    sellers = []
+    offset = 0
+    while True:
+        data = cli(["data-extraction", "sellers-with-metrics", "--limit", "5000", "--offset", str(offset)])
+        page = data.get("result") if isinstance(data, dict) else None
+        if isinstance(page, dict):
+            page = page.get("items") or page.get("list") or []
+        if not page:
+            break
+        sellers.extend(page)
+        if len(page) < 5000 or offset > 200000:
+            break
+        offset += 5000
+        print(f"  …{len(sellers)}명 로드 중")
     if not sellers:
         sys.exit("sellers-with-metrics 조회 실패")
     by_nick = {norm(s.get("nickname")): s for s in sellers if s.get("nickname")}
