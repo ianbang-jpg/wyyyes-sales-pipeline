@@ -86,14 +86,24 @@ def main():
     if not sellers:
         sys.exit("sellers-with-metrics 조회 실패")
     by_nick = {norm(s.get("nickname")): s for s in sellers if s.get("nickname")}
-    print(f"wyyyes 딜러 {len(by_nick)}명 로드")
+    by_id = {s["sellerId"]: s for s in sellers}
+    print(f"wyyyes 딜러 {len(by_id)}명 로드")
 
     matched = 0
+    unmatched_with_nickname = []
     for l in leads:
-        seller = by_nick.get(norm(l.get("nickname"))) or by_nick.get(norm(l.get("name")))
+        # 1) 이전에 매칭된 sellerId 우선 (닉네임이 바뀌어도 추적 유지)
+        prev_id = ((l.get("extra") or {}).get("metrics") or {}).get("seller_id")
+        seller = by_id.get(prev_id) if prev_id else None
+        matched_by = "seller_id"
+        # 2) 닉네임 → 3) 카드 이름
         if not seller:
+            seller = by_nick.get(norm(l.get("nickname"))) or by_nick.get(norm(l.get("name")))
+            matched_by = "nickname" if norm(l.get("nickname")) in by_nick else "name"
+        if not seller:
+            if l.get("nickname"):
+                unmatched_with_nickname.append(f"{l['name']} (닉네임: {l['nickname']})")
             continue
-        matched_by = "nickname" if norm(l.get("nickname")) in by_nick else "name"
 
         # 종료 라이브 수 + 마지막 라이브
         lives = cli(["lives", "list", "--seller-id", str(seller["sellerId"]),
@@ -127,6 +137,10 @@ def main():
             sb("PATCH", f"/rest/v1/leads?id=eq.{l['id']}", {"extra": extra}, token=token)
 
     print(f"\n매칭 {matched}건 / 미매칭 {len(leads) - matched}건" + (" (dry-run, 저장 안 함)" if args.dry_run else " — 저장 완료"))
+    if unmatched_with_nickname:
+        print("⚠️ 닉네임이 있는데 매칭 실패 (오타 확인 필요):")
+        for x in unmatched_with_nickname:
+            print("  -", x)
 
 
 if __name__ == "__main__":
