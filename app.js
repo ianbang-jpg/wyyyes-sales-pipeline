@@ -48,6 +48,8 @@
     selectMode: false,
     selected: new Set(),
     calMonth: null, // Date (해당 월 1일)
+    retSortKey: "idle",
+    retSortDir: "desc",
     profiles: {}, // owner -> {avatar, memo}
   };
 
@@ -391,13 +393,14 @@
     ["#dash-category-filter", "#board-category-filter", "#table-category-filter"].forEach((sel) => {
       $(sel).innerHTML += (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
     });
-    ["#table-owner-filter", "#board-owner-filter", "#dash-owner-filter"].forEach((sel) => {
+    ["#table-owner-filter", "#board-owner-filter", "#dash-owner-filter", "#ret-owner-filter"].forEach((sel) => {
       $(sel).innerHTML += OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     });
 
     // 필터 이벤트
     ["#dash-owner-filter", "#dash-category-filter", "#board-owner-filter", "#board-category-filter", "#board-search",
-     "#table-search", "#table-stage-filter", "#table-channel-filter", "#table-category-filter", "#table-owner-filter"]
+     "#table-search", "#table-stage-filter", "#table-channel-filter", "#table-category-filter", "#table-owner-filter",
+     "#ret-owner-filter"]
       .forEach((sel) => $(sel).addEventListener("input", renderAll));
 
     // 유형별 필드 토글
@@ -428,6 +431,16 @@
     });
     $("#drawer-backdrop").addEventListener("click", (e) => { if (e.target.id === "drawer-backdrop") closeDrawer(); });
     $("#memo-form").addEventListener("submit", addMemo);
+
+    // 리텐션 테이블 정렬
+    $$("#ret-table th").forEach((th) =>
+      th.addEventListener("click", () => {
+        const key = th.dataset.sort;
+        if (state.retSortKey === key) state.retSortDir = state.retSortDir === "asc" ? "desc" : "asc";
+        else { state.retSortKey = key; state.retSortDir = "desc"; }
+        renderRetention();
+      })
+    );
 
     // 테이블 정렬
     $$("#leads-table th").forEach((th) =>
@@ -467,6 +480,7 @@
     if (state.tab === "board") renderBoard();
     if (state.tab === "table") renderTable();
     if (state.tab === "cal") renderCal();
+    if (state.tab === "ret") renderRetention();
   }
 
   function renderDashboard() {
@@ -745,6 +759,88 @@
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup", onUp);
     });
+  }
+
+  // ── 리텐션 (승인/판매 딜러 활동 추적) ──
+  const RET_STAGES = ["승인", "판매"];
+
+  function renderRetention() {
+    const ownerF = $("#ret-owner-filter").value;
+    const rows = state.leads.filter((l) =>
+      l.type === "dealer" && RET_STAGES.includes(l.stage) && (!ownerF || l.owner === ownerF));
+
+    const idleDays = (l) => {
+      const m = l.extra?.metrics;
+      if (!m || !m.last_live_at) return Infinity; // 기록 없음 = 최상위 주의
+      return daysIn(m.last_live_at);
+    };
+    const getters = {
+      name: (l) => l.name,
+      stage: (l) => l.stage,
+      owner: (l) => l.owner || "",
+      approved: (l) => l.extra?.metrics?.approved_at || l.approved_at || "",
+      live_count: (l) => l.extra?.metrics?.live_count ?? -1,
+      last_live: (l) => l.extra?.metrics?.last_live_at || "",
+      idle: idleDays,
+      sold: (l) => l.extra?.metrics?.acc_sold_amount ?? -1,
+      synced: (l) => l.extra?.metrics?.synced_at || "",
+    };
+    const { retSortKey: k, retSortDir: dir } = state;
+    const get = getters[k] || getters.idle;
+    rows.sort((a, b) => {
+      const va = get(a), vb = get(b);
+      const cmp = typeof va === "number" && typeof vb === "number"
+        ? (va === vb ? 0 : va > vb ? 1 : -1)
+        : String(va).localeCompare(String(vb));
+      return dir === "asc" ? cmp : -cmp;
+    });
+    $$("#ret-table th").forEach((th) => {
+      th.classList.toggle("sorted-asc", th.dataset.sort === k && dir === "asc");
+      th.classList.toggle("sorted-desc", th.dataset.sort === k && dir === "desc");
+    });
+
+    // 요약 KPI
+    const withM = rows.filter((l) => l.extra?.metrics);
+    const live7 = withM.filter((l) => idleDays(l) <= 7).length;
+    const idle30 = rows.filter((l) => idleDays(l) === Infinity || idleDays(l) >= 30).length;
+    const totalSold = withM.reduce((s, l) => s + (l.extra.metrics.acc_sold_amount || 0), 0);
+    $("#ret-kpi").innerHTML = [
+      { label: "추적 대상", value: rows.length, sub: "승인·판매 단계 딜러" },
+      { label: "최근 7일 라이브", value: live7, sub: "활동 중" },
+      { label: "30일+ 미방송", value: idle30, sub: "리텐션 주의 ⚠️" },
+      { label: "누적 판매 합계", value: `${fmtNum(Math.round(totalSold / 10000))}만`, sub: "원 (동기화 기준)" },
+    ].map((x) => `
+      <div class="kpi">
+        <div class="kpi-label">${x.label}</div>
+        <div class="kpi-value">${x.value}</div>
+        <div class="kpi-sub">${x.sub}</div>
+      </div>`).join("");
+
+    // 테이블
+    $("#ret-table tbody").innerHTML = rows.map((l) => {
+      const m = l.extra?.metrics;
+      const idle = idleDays(l);
+      const idleHtml = m
+        ? (m.last_live_at
+          ? `<span class="ret-idle ${idle >= 30 ? "bad" : idle >= 14 ? "warn" : "ok"}">${idle}일</span>`
+          : `<span class="ret-idle bad">기록 없음</span>`)
+        : `<span class="muted">—</span>`;
+      return `
+        <tr data-id="${l.id}">
+          <td class="td-name">${esc(l.name)}${m?.wyyyes_nickname ? ` <span class="muted">@${esc(m.wyyyes_nickname)}</span>` : ""}</td>
+          <td><span class="stage-chip stage-${l.stage}">${l.stage}</span></td>
+          <td>${ownerBadge(l.owner)}</td>
+          <td>${m?.approved_at ? fmtDate(m.approved_at) : fmtDate(l.approved_at)}</td>
+          <td>${m ? `${fmtNum(m.live_count)}회` : `<span class="muted">미동기화</span>`}</td>
+          <td>${m?.last_live_at ? fmtDate(m.last_live_at) : ""}</td>
+          <td>${idleHtml}</td>
+          <td class="ret-sold">${m ? fmtNum(m.acc_sold_amount) + "원" : ""}</td>
+          <td class="muted">${m?.synced_at ? fmtDate(m.synced_at) : ""}</td>
+        </tr>`;
+    }).join("") || `<tr><td colspan="9" class="muted" style="text-align:center;padding:30px">승인·판매 단계의 딜러가 없어요.</td></tr>`;
+
+    $$("#ret-table tbody tr[data-id]").forEach((tr) =>
+      tr.addEventListener("click", () => openDrawer(tr.dataset.id)));
   }
 
   // ── 캘린더 ──

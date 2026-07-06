@@ -703,3 +703,12 @@ td.td-na .na-line { margin-top: 0; max-width: 220px; overflow: hidden; text-over
 }
 .drawer-metrics { font-size: 13px; line-height: 1.7; }
 .drawer-metrics-sync { font-size: 11px; color: var(--muted); }
+
+/* 리텐션 탭 */
+.ret-note { font-size: 12px; margin-left: 14px; }
+.ret-idle { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.ret-idle.ok { background: #dcf5e4; color: #15803c; }
+.ret-idle.warn { background: #fff3d6; color: #9a6b00; }
+.ret-idle.bad { background: #ffe4e4; color: #b42121; }
+.ret-sold { font-weight: 700; }
+#ret-kpi { margin-bottom: 16px; }

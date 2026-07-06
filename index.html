@@ -40,6 +40,7 @@
           <button class="tab-btn" data-tab="board">보드</button>
           <button class="tab-btn" data-tab="table">테이블</button>
           <button class="tab-btn" data-tab="cal">캘린더</button>
+          <button class="tab-btn" data-tab="ret">리텐션</button>
         </nav>
       </div>
       <div class="topbar-right">
@@ -205,6 +206,33 @@
       </div>
       <div class="cal-type-legend muted">📞 컨택일 · ✅ 승인일 · 📌 액션 기한 <span class="cal-note">(발굴·보류·제외 단계는 표시하지 않아요)</span></div>
       <div id="calendar" class="calendar"></div>
+    </main>
+
+    <!-- 리텐션 (승인/판매 딜러 활동 추적) -->
+    <main id="tab-ret" class="tab-panel hidden">
+      <div class="filter-bar">
+        <div class="f-group"><span class="f-label">담당자</span><select id="ret-owner-filter"><option value="">전체</option></select></div>
+        <span class="muted ret-note">승인·판매 단계 딜러의 실활동 지표 — "딜러 지표 동기화"로 갱신됩니다</span>
+      </div>
+      <section class="kpi-row" id="ret-kpi"></section>
+      <div class="table-wrap">
+        <table id="ret-table">
+          <thead>
+            <tr>
+              <th data-sort="name">딜러</th>
+              <th data-sort="stage">단계</th>
+              <th data-sort="owner">담당자</th>
+              <th data-sort="approved">와이스 승인일</th>
+              <th data-sort="live_count">라이브 수</th>
+              <th data-sort="last_live">마지막 라이브</th>
+              <th data-sort="idle">미방송</th>
+              <th data-sort="sold">누적 판매금액</th>
+              <th data-sort="synced">동기화</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </main>
   </div>
 
