@@ -694,3 +694,12 @@ td.td-na .na-line { margin-top: 0; max-width: 220px; overflow: hidden; text-over
   .form-grid .span2 { grid-column: span 1; }
   .topbar { padding: 8px 12px; }
 }
+
+/* 실활동 지표 (CLI 동기화) */
+.lc-metrics {
+  margin-top: 6px;
+  font-size: 12px; font-weight: 600;
+  color: #0d6a32;
+}
+.drawer-metrics { font-size: 13px; line-height: 1.7; }
+.drawer-metrics-sync { font-size: 11px; color: var(--muted); }

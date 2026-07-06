@@ -996,6 +996,7 @@
                   ${catChip(l.category)}
                   ${l.followers ? `<span class="lc-chip">👥 ${followerLabel(l.followers)}</span>` : ""}
                 </div>
+                ${l.extra?.metrics ? `<div class="lc-metrics">🎥 ${l.extra.metrics.live_count}회${l.extra.metrics.last_live_at ? ` · ${fmtDate(l.extra.metrics.last_live_at).slice(5)}` : ""} · 💰 ${fmtNum(l.extra.metrics.acc_sold_amount)}원</div>` : ""}
                 ${naLine(l)}
                 ${l.notes ? `<div class="lc-notes">${esc(l.notes)}</div>` : ""}
               </div>`).join("")}
@@ -1288,8 +1289,18 @@
       "business", "region", "main_products", "contact_point", "contact_date",
       ...(l.type === "influencer" ? ["collab_type"] : []),
       "nickname", "approved_at", "notes"];
+    const mt = l.extra?.metrics;
+    const metricsHtml = mt ? `
+      <dt>실활동 지표</dt>
+      <dd class="drawer-metrics">
+        🎥 라이브 ${mt.live_count}회${mt.last_live_at ? ` · 마지막 ${fmtDate(mt.last_live_at)}` : ""}<br>
+        💰 누적 판매 ${fmtNum(mt.acc_sold_amount)}원
+        ${mt.user_id ? `<br><a href="https://asgard-kp-admin.volla.local/appService/users/${esc(mt.user_id)}" target="_blank" rel="noopener" class="muted">어드민에서 보기 ↗</a>` : ""}
+        <br><span class="drawer-metrics-sync">동기화 ${fmtDateTime(mt.synced_at)} · @${esc(mt.wyyyes_nickname || "")}</span>
+      </dd>` : "";
     $("#drawer-info").innerHTML =
       keys.map((k) => `<dt>${FIELD_LABELS[k]}</dt><dd>${drawerFieldHtml(l, k)}</dd>`).join("") +
+      metricsHtml +
       `<dt>등록일</dt><dd class="muted">${fmtDateTime(l.created_at)}</dd>`;
     $("#drawer-backdrop").classList.remove("hidden");
     loadDrawerTimeline(id);
