@@ -41,6 +41,7 @@
           <button class="tab-btn" data-tab="table">테이블</button>
           <button class="tab-btn" data-tab="cal">캘린더</button>
           <button class="tab-btn" data-tab="ret">리텐션</button>
+          <button class="tab-btn" data-tab="deliv">결과물</button>
         </nav>
       </div>
       <div class="topbar-right">
@@ -234,6 +235,49 @@
         </table>
       </div>
     </main>
+
+    <!-- 협업 결과물 (인플루언서) -->
+    <main id="tab-deliv" class="tab-panel hidden">
+      <div class="filter-bar">
+        <div class="f-group"><span class="f-label">플랫폼</span><div class="btn-group seg" id="deliv-platform-filter" data-value=""></div></div>
+        <div class="f-group"><span class="f-label">담당자</span><select id="deliv-owner-filter"><option value="">전체</option></select></div>
+        <span class="spacer" style="flex:1"></span>
+        <button id="deliv-add-btn" class="primary">+ 결과물 등록</button>
+      </div>
+      <section class="kpi-row" id="deliv-kpi"></section>
+      <div id="deliv-grid" class="deliv-grid"></div>
+    </main>
+  </div>
+
+  <!-- 결과물 등록 모달 -->
+  <div id="deliv-modal-backdrop" class="modal-backdrop hidden">
+    <div class="modal daypop">
+      <div class="modal-head">
+        <h2>협업 결과물 등록</h2>
+        <button type="button" id="deliv-modal-close" title="닫기">✕</button>
+      </div>
+      <form id="deliv-form">
+        <div class="form-grid">
+          <label class="span2">인플루언서*
+            <select id="deliv-lead" required></select>
+          </label>
+          <label class="span2">콘텐츠 링크*
+            <input id="deliv-url" type="url" required placeholder="https://youtube.com/… 또는 instagram.com/…">
+          </label>
+          <label class="span2">제목 / 메모
+            <input id="deliv-title" placeholder="예: 포켓몬 신상 언박싱 릴스">
+          </label>
+          <label>게시일
+            <input id="deliv-date" type="date">
+          </label>
+        </div>
+        <div class="modal-actions">
+          <span class="spacer"></span>
+          <button type="button" id="deliv-cancel">취소</button>
+          <button type="submit" class="primary">등록</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- 등록/수정 모달 -->

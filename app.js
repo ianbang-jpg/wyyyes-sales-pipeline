@@ -50,6 +50,7 @@
     calMonth: null, // Date (해당 월 1일)
     retSortKey: "idle",
     retSortDir: "desc",
+    deliverables: [],
     profiles: {}, // owner -> {avatar, memo}
   };
 
@@ -201,6 +202,7 @@
     $("#app").classList.remove("hidden");
     initControls();
     loadProfiles();
+    loadDeliverables();
     // #me=이름 해시 → 해당 팀원의 내 페이지로 진입
     const m = location.hash.match(/^#me=(.+)$/);
     if (m) {
@@ -305,6 +307,17 @@
     });
     initMarquee();
 
+    // 결과물 탭
+    initBtnGroup("#deliv-platform-filter", [
+      { value: "", label: "전체" }, { value: "youtube", label: "유튜브" },
+      { value: "reels", label: "릴스" }, { value: "instagram", label: "인스타" }, { value: "etc", label: "기타" },
+    ]);
+    $("#deliv-add-btn").addEventListener("click", openDelivModal);
+    $("#deliv-modal-close").addEventListener("click", closeDelivModal);
+    $("#deliv-cancel").addEventListener("click", closeDelivModal);
+    $("#deliv-modal-backdrop").addEventListener("click", (e) => { if (e.target.id === "deliv-modal-backdrop") closeDelivModal(); });
+    $("#deliv-form").addEventListener("submit", saveDeliv);
+
     // 캘린더 내비게이션
     const calShift = (n) => {
       const m = state.calMonth || new Date();
@@ -393,14 +406,14 @@
     ["#dash-category-filter", "#board-category-filter", "#table-category-filter"].forEach((sel) => {
       $(sel).innerHTML += (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
     });
-    ["#table-owner-filter", "#board-owner-filter", "#dash-owner-filter", "#ret-owner-filter"].forEach((sel) => {
+    ["#table-owner-filter", "#board-owner-filter", "#dash-owner-filter", "#ret-owner-filter", "#deliv-owner-filter"].forEach((sel) => {
       $(sel).innerHTML += OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     });
 
     // 필터 이벤트
     ["#dash-owner-filter", "#dash-category-filter", "#board-owner-filter", "#board-category-filter", "#board-search",
      "#table-search", "#table-stage-filter", "#table-channel-filter", "#table-category-filter", "#table-owner-filter",
-     "#ret-owner-filter"]
+     "#ret-owner-filter", "#deliv-owner-filter"]
       .forEach((sel) => $(sel).addEventListener("input", renderAll));
 
     // 유형별 필드 토글
@@ -481,6 +494,7 @@
     if (state.tab === "table") renderTable();
     if (state.tab === "cal") renderCal();
     if (state.tab === "ret") renderRetention();
+    if (state.tab === "deliv") renderDeliv();
   }
 
   function renderDashboard() {
@@ -759,6 +773,120 @@
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup", onUp);
     });
+  }
+
+  // ── 협업 결과물 ──
+  async function loadDeliverables() {
+    const { data } = await sb.from("deliverables").select("*").order("posted_at", { ascending: false, nullsFirst: false });
+    state.deliverables = data || [];
+    if (state.tab === "deliv") renderDeliv();
+  }
+
+  function delivPlatform(url) {
+    const u = String(url || "").toLowerCase();
+    if (/youtube\.com|youtu\.be/.test(u)) return "youtube";
+    if (/instagram\.com\/(reel|reels)/.test(u)) return "reels";
+    if (/instagram\.com/.test(u)) return "instagram";
+    return "etc";
+  }
+  const DELIV_LABEL = { youtube: "유튜브", reels: "릴스", instagram: "인스타그램", etc: "링크" };
+
+  function ytThumb(url) {
+    const m = String(url).match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([\w-]{11})/);
+    return m ? `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg` : null;
+  }
+
+  function renderDeliv() {
+    const pf = fVal("#deliv-platform-filter");
+    const ownerF = $("#deliv-owner-filter").value;
+    const leadById = Object.fromEntries(state.leads.map((l) => [l.id, l]));
+    const rows = state.deliverables.filter((d) => {
+      const lead = leadById[d.lead_id];
+      return (!pf || delivPlatform(d.url) === pf) && (!ownerF || (lead && lead.owner === ownerF));
+    });
+
+    // KPI
+    const monthStart = todayStr().slice(0, 7);
+    const thisMonth = rows.filter((d) => (d.posted_at || d.created_at || "").slice(0, 7) === monthStart).length;
+    const uniqInf = new Set(rows.map((d) => d.lead_id)).size;
+    $("#deliv-kpi").innerHTML = [
+      { label: "총 결과물", value: rows.length, sub: "등록된 콘텐츠" },
+      { label: "이번 달 게시", value: thisMonth, sub: "게시일 기준" },
+      { label: "참여 인플루언서", value: uniqInf, sub: "결과물 보유" },
+    ].map((x) => `
+      <div class="kpi">
+        <div class="kpi-label">${x.label}</div>
+        <div class="kpi-value">${x.value}</div>
+        <div class="kpi-sub">${x.sub}</div>
+      </div>`).join("");
+
+    // 갤러리
+    $("#deliv-grid").innerHTML = rows.map((d) => {
+      const lead = leadById[d.lead_id];
+      const pfType = delivPlatform(d.url);
+      const thumb = pfType === "youtube" ? ytThumb(d.url) : null;
+      const pfIcon = pfType === "youtube" ? chIcon("유튜브")
+        : (pfType === "reels" || pfType === "instagram") ? chIcon("인스타그램") : "🔗";
+      return `
+        <div class="deliv-card">
+          <a href="${esc(d.url)}" target="_blank" rel="noopener" class="deliv-thumb ${pfType}">
+            ${thumb ? `<img src="${thumb}" alt="" loading="lazy">` : `<span class="deliv-thumb-icon">${pfIcon}</span>`}
+            <span class="deliv-pf">${pfIcon} ${DELIV_LABEL[pfType]}</span>
+          </a>
+          <div class="deliv-body">
+            <div class="deliv-title">${esc(d.title || d.url.replace(/^https?:\/\//, "").slice(0, 40))}</div>
+            <div class="deliv-meta">
+              <span class="deliv-inf" data-id="${d.lead_id}">${esc(lead?.name || "(삭제된 카드)")}</span>
+              ${lead ? `<span class="stage-chip stage-${lead.stage}">${lead.stage}</span>` : ""}
+            </div>
+            <div class="deliv-sub muted">
+              ${d.posted_at ? `게시 ${fmtDate(d.posted_at)}` : ""} ${d.author ? `· ${esc(d.author)}` : ""}
+              <button class="note-del deliv-del" data-del="${d.id}" title="삭제">✕</button>
+            </div>
+          </div>
+        </div>`;
+    }).join("") || `<div class="muted deliv-empty">등록된 결과물이 없어요. 우측 상단 "+ 결과물 등록"으로 링크를 추가해보세요.</div>`;
+
+    $$("#deliv-grid .deliv-inf").forEach((el) =>
+      el.addEventListener("click", () => openDrawer(el.dataset.id)));
+    $$("#deliv-grid .deliv-del").forEach((btn) =>
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!confirm("이 결과물을 삭제할까요?")) return;
+        const { error } = await sb.from("deliverables").delete().eq("id", btn.dataset.del);
+        if (error) { toast("삭제 실패: " + error.message); return; }
+        toast("삭제했어요");
+        loadDeliverables();
+      }));
+  }
+
+  function openDelivModal() {
+    const infs = state.leads.filter((l) => l.type === "influencer" && !CLOSED_STAGES.includes(l.stage))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    $("#deliv-lead").innerHTML = `<option value=""></option>` +
+      infs.map((l) => `<option value="${l.id}">${esc(l.name)} (${l.stage}${l.owner ? " · " + esc(l.owner) : ""})</option>`).join("");
+    $("#deliv-form").reset();
+    $("#deliv-date").value = todayStr();
+    $("#deliv-modal-backdrop").classList.remove("hidden");
+  }
+  function closeDelivModal() { $("#deliv-modal-backdrop").classList.add("hidden"); }
+
+  async function saveDeliv(e) {
+    e.preventDefault();
+    const leadId = $("#deliv-lead").value;
+    const url = $("#deliv-url").value.trim();
+    if (!leadId || !url) return;
+    const { error } = await sb.from("deliverables").insert({
+      lead_id: leadId, url,
+      title: $("#deliv-title").value.trim() || null,
+      posted_at: $("#deliv-date").value || null,
+      author: me(),
+    });
+    if (error) { toast("등록 실패: " + error.message); return; }
+    logActivity(leadId, "결과물 등록", url.slice(0, 80));
+    toast("결과물을 등록했어요");
+    closeDelivModal();
+    loadDeliverables();
   }
 
   // ── 리텐션 (승인/판매 딜러 활동 추적) ──

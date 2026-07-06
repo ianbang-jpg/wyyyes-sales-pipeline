@@ -712,3 +712,52 @@ td.td-na .na-line { margin-top: 0; max-width: 220px; overflow: hidden; text-over
 .ret-idle.bad { background: #ffe4e4; color: #b42121; }
 .ret-sold { font-weight: 700; }
 #ret-kpi { margin-bottom: 16px; }
+
+/* 협업 결과물 갤러리 */
+.deliv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+.deliv-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: box-shadow .15s, transform .15s;
+}
+.deliv-card:hover { box-shadow: 0 4px 12px rgba(8, 10, 26, 0.12); transform: translateY(-1px); }
+.deliv-thumb {
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(135deg, #f0f1f5, #e3e6ef);
+  text-decoration: none;
+}
+.deliv-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.deliv-thumb.instagram, .deliv-thumb.reels {
+  background: linear-gradient(135deg, #fdf0f6, #fde8d9);
+}
+.deliv-thumb-icon { font-size: 34px; }
+.deliv-thumb-icon .ch-icon { width: 40px; height: 40px; }
+.deliv-pf {
+  position: absolute; left: 8px; bottom: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 11px; font-weight: 700; color: var(--text);
+  padding: 3px 8px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.deliv-pf .ch-icon { width: 13px; height: 13px; vertical-align: -2px; }
+.deliv-body { padding: 11px 13px; }
+.deliv-title {
+  font-weight: 700; font-size: 13px; line-height: 1.4;
+  margin-bottom: 7px; word-break: break-all;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.deliv-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.deliv-inf { font-size: 12px; font-weight: 600; color: #1a56c4; cursor: pointer; }
+.deliv-inf:hover { text-decoration: underline; }
+.deliv-sub { font-size: 11px; display: flex; align-items: center; gap: 4px; }
+.deliv-sub .deliv-del { margin-left: auto; }
+.deliv-empty { grid-column: 1 / -1; text-align: center; padding: 50px 0; }
