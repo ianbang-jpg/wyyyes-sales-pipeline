@@ -413,7 +413,7 @@
     // 필터 이벤트
     ["#dash-owner-filter", "#dash-category-filter", "#board-owner-filter", "#board-category-filter", "#board-search",
      "#table-search", "#table-stage-filter", "#table-channel-filter", "#table-category-filter", "#table-owner-filter",
-     "#ret-owner-filter", "#deliv-owner-filter"]
+     "#ret-owner-filter", "#deliv-owner-filter", "#deliv-search"]
       .forEach((sel) => $(sel).addEventListener("input", renderAll));
 
     // 유형별 필드 토글
@@ -799,20 +799,24 @@
   function renderDeliv() {
     const pf = fVal("#deliv-platform-filter");
     const ownerF = $("#deliv-owner-filter").value;
+    const q = $("#deliv-search").value.trim().toLowerCase();
     const leadById = Object.fromEntries(state.leads.map((l) => [l.id, l]));
     const rows = state.deliverables.filter((d) => {
       const lead = leadById[d.lead_id];
-      return (!pf || delivPlatform(d.url) === pf) && (!ownerF || (lead && lead.owner === ownerF));
+      return (!pf || delivPlatform(d.url) === pf) && (!ownerF || (lead && lead.owner === ownerF)) &&
+        (!q || [d.title, d.url, lead?.name].join(" ").toLowerCase().includes(q));
     });
 
     // KPI
     const monthStart = todayStr().slice(0, 7);
     const thisMonth = rows.filter((d) => (d.posted_at || d.created_at || "").slice(0, 7) === monthStart).length;
     const uniqInf = new Set(rows.map((d) => d.lead_id)).size;
+    const totalViews = rows.reduce((s2, d) => s2 + (d.views || 0), 0);
     $("#deliv-kpi").innerHTML = [
       { label: "총 결과물", value: rows.length, sub: "등록된 콘텐츠" },
       { label: "이번 달 게시", value: thisMonth, sub: "게시일 기준" },
       { label: "참여 인플루언서", value: uniqInf, sub: "결과물 보유" },
+      { label: "총 조회수", value: fmtNum(totalViews), sub: "입력된 지표 합계" },
     ].map((x) => `
       <div class="kpi">
         <div class="kpi-label">${x.label}</div>
@@ -839,8 +843,16 @@
               <span class="deliv-inf" data-id="${d.lead_id}">${esc(lead?.name || "(삭제된 카드)")}</span>
               ${lead ? `<span class="stage-chip stage-${lead.stage}">${lead.stage}</span>` : ""}
             </div>
+            ${(d.views || d.likes || d.comments || d.shares) ? `
+            <div class="deliv-stats">
+              ${d.views ? `<span title="조회수">👁 ${fmtNum(d.views)}</span>` : ""}
+              ${d.likes ? `<span title="좋아요">❤️ ${fmtNum(d.likes)}</span>` : ""}
+              ${d.comments ? `<span title="댓글수">💬 ${fmtNum(d.comments)}</span>` : ""}
+              ${d.shares ? `<span title="공유수">↗ ${fmtNum(d.shares)}</span>` : ""}
+            </div>` : ""}
             <div class="deliv-sub muted">
               ${d.posted_at ? `게시 ${fmtDate(d.posted_at)}` : ""} ${d.author ? `· ${esc(d.author)}` : ""}
+              <button class="note-del deliv-edit" data-edit="${d.id}" title="수정" style="margin-left:auto">✏️</button>
               <button class="note-del deliv-del" data-del="${d.id}" title="삭제">✕</button>
             </div>
           </div>
@@ -849,6 +861,12 @@
 
     $$("#deliv-grid .deliv-inf").forEach((el) =>
       el.addEventListener("click", () => openDrawer(el.dataset.id)));
+    $$("#deliv-grid .deliv-edit").forEach((btn) =>
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const d = state.deliverables.find((x) => String(x.id) === btn.dataset.edit);
+        if (d) openDelivModal(d);
+      }));
     $$("#deliv-grid .deliv-del").forEach((btn) =>
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
@@ -860,13 +878,29 @@
       }));
   }
 
-  function openDelivModal() {
-    const infs = state.leads.filter((l) => l.type === "influencer" && !CLOSED_STAGES.includes(l.stage))
+  let delivEditId = null;
+  function openDelivModal(edit = null) {
+    delivEditId = edit ? edit.id : null;
+    $("#deliv-modal-title").textContent = edit ? "협업 결과물 수정" : "협업 결과물 등록";
+    // 진행/완료 단계 인플루언서만 (수정 시 기존 대상은 유지)
+    const infs = state.leads.filter((l) =>
+      l.type === "influencer" && (["진행", "완료"].includes(l.stage) || (edit && l.id === edit.lead_id)))
       .sort((a, b) => a.name.localeCompare(b.name));
     $("#deliv-lead").innerHTML = `<option value=""></option>` +
       infs.map((l) => `<option value="${l.id}">${esc(l.name)} (${l.stage}${l.owner ? " · " + esc(l.owner) : ""})</option>`).join("");
     $("#deliv-form").reset();
-    $("#deliv-date").value = todayStr();
+    if (edit) {
+      $("#deliv-lead").value = edit.lead_id;
+      $("#deliv-url").value = edit.url;
+      $("#deliv-title").value = edit.title || "";
+      $("#deliv-date").value = edit.posted_at || "";
+      $("#deliv-views").value = edit.views ?? "";
+      $("#deliv-likes").value = edit.likes ?? "";
+      $("#deliv-comments").value = edit.comments ?? "";
+      $("#deliv-shares").value = edit.shares ?? "";
+    } else {
+      $("#deliv-date").value = todayStr();
+    }
     $("#deliv-modal-backdrop").classList.remove("hidden");
   }
   function closeDelivModal() { $("#deliv-modal-backdrop").classList.add("hidden"); }
@@ -876,15 +910,28 @@
     const leadId = $("#deliv-lead").value;
     const url = $("#deliv-url").value.trim();
     if (!leadId || !url) return;
-    const { error } = await sb.from("deliverables").insert({
+    const num = (sel) => { const v = $(sel).value; return v === "" ? null : Number(v); };
+    const payload = {
       lead_id: leadId, url,
       title: $("#deliv-title").value.trim() || null,
       posted_at: $("#deliv-date").value || null,
-      author: me(),
-    });
-    if (error) { toast("등록 실패: " + error.message); return; }
-    logActivity(leadId, "결과물 등록", url.slice(0, 80));
-    toast("결과물을 등록했어요");
+      views: num("#deliv-views"),
+      likes: num("#deliv-likes"),
+      comments: num("#deliv-comments"),
+      shares: num("#deliv-shares"),
+    };
+    if (delivEditId) {
+      const { error } = await sb.from("deliverables").update(payload).eq("id", delivEditId);
+      if (error) { toast("저장 실패: " + error.message); return; }
+      logActivity(leadId, "결과물 수정", payload.title || url.slice(0, 80));
+      toast("결과물을 수정했어요");
+    } else {
+      payload.author = me();
+      const { error } = await sb.from("deliverables").insert(payload);
+      if (error) { toast("등록 실패: " + error.message); return; }
+      logActivity(leadId, "결과물 등록", url.slice(0, 80));
+      toast("결과물을 등록했어요");
+    }
     closeDelivModal();
     loadDeliverables();
   }

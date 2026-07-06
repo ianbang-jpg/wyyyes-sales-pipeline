@@ -239,6 +239,7 @@
     <!-- 협업 결과물 (인플루언서) -->
     <main id="tab-deliv" class="tab-panel hidden">
       <div class="filter-bar">
+        <input type="search" id="deliv-search" placeholder="🔍 제목/인플루언서 검색">
         <div class="f-group"><span class="f-label">플랫폼</span><div class="btn-group seg" id="deliv-platform-filter" data-value=""></div></div>
         <div class="f-group"><span class="f-label">담당자</span><select id="deliv-owner-filter"><option value="">전체</option></select></div>
         <span class="spacer" style="flex:1"></span>
@@ -253,7 +254,7 @@
   <div id="deliv-modal-backdrop" class="modal-backdrop hidden">
     <div class="modal daypop">
       <div class="modal-head">
-        <h2>협업 결과물 등록</h2>
+        <h2 id="deliv-modal-title">협업 결과물 등록</h2>
         <button type="button" id="deliv-modal-close" title="닫기">✕</button>
       </div>
       <form id="deliv-form">
@@ -269,6 +270,18 @@
           </label>
           <label>게시일
             <input id="deliv-date" type="date">
+          </label>
+          <label>조회수
+            <input id="deliv-views" type="number" min="0" placeholder="예: 12000">
+          </label>
+          <label>좋아요
+            <input id="deliv-likes" type="number" min="0">
+          </label>
+          <label>댓글수
+            <input id="deliv-comments" type="number" min="0">
+          </label>
+          <label>공유수
+            <input id="deliv-shares" type="number" min="0">
           </label>
         </div>
         <div class="modal-actions">
