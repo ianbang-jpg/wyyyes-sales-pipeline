@@ -901,18 +901,24 @@
         <div class="kpi-sub">${x.sub}</div>
       </div>`).join("");
 
-    // 월별 투입 금액
-    const byMonth = {};
-    rows.forEach((d) => {
-      const mkey = (d.posted_at || d.created_at || "").slice(0, 7);
-      if (!mkey) return;
-      byMonth[mkey] = (byMonth[mkey] || 0) + costOf(d);
-    });
-    const months = Object.entries(byMonth).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 6);
-    const maxCost = Math.max(1, ...months.map(([, c]) => c));
-    $("#deliv-monthly").innerHTML = months.map(([mkey, c]) =>
-      barRow(`${mkey.slice(0, 4)}년 ${Number(mkey.slice(5))}월`, Math.round(c / 10000), Math.round(maxCost / 10000) || 1, `<span class="bar-pct">만원</span>`)
-    ).join("") || `<span class="muted">집계할 투입 금액이 없어요. 인플루언서 카드에 실제 단가를 입력하면 결과물별로 합산됩니다.</span>`;
+    // 투입 금액: 저번 달 vs 이번 달
+    const t2 = new Date();
+    const curKey = `${t2.getFullYear()}-${String(t2.getMonth() + 1).padStart(2, "0")}`;
+    const p2 = new Date(t2.getFullYear(), t2.getMonth() - 1, 1);
+    const prevKey = `${p2.getFullYear()}-${String(p2.getMonth() + 1).padStart(2, "0")}`;
+    const sumMonth = (mk) => rows.filter((d) => (d.posted_at || d.created_at || "").slice(0, 7) === mk)
+      .reduce((s2, d) => s2 + costOf(d), 0);
+    const prevSpend = sumMonth(prevKey);
+    const curSpend = sumMonth(curKey);
+    const dd = curSpend - prevSpend;
+    const deltaHtml = dd > 0 ? `<span class="delta up">▲ ${fmtNum(dd)}원</span>`
+      : dd < 0 ? `<span class="delta down">▼ ${fmtNum(-dd)}원</span>` : `<span class="delta">–</span>`;
+    $("#deliv-monthly").innerHTML = `
+      <div class="spend-top">
+        <div><div class="kpi-label">저번 달 (${Number(prevKey.slice(5))}월)</div><div class="spend-val">${fmtNum(prevSpend)}원</div></div>
+        <div><div class="kpi-label">이번 달 (${Number(curKey.slice(5))}월)</div><div class="spend-val">${fmtNum(curSpend)}원</div></div>
+        <div><div class="kpi-label">증감</div><div class="spend-val">${deltaHtml}</div></div>
+      </div>`;
 
     // 갤러리
     $("#deliv-grid").innerHTML = rows.map((d) => {
