@@ -883,3 +883,4 @@ a { color: #1a56c4; }
 /* 캘린더 이벤트 클릭 피드백 */
 .cal-ev { transition: transform .1s; }
 .cal-ev:active { transform: scale(.97); }
+.deliv-thumb.x { background: linear-gradient(135deg, #eceef2, #dfe3ea); }
