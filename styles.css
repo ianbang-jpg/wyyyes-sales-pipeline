@@ -777,9 +777,17 @@ td.td-na .na-line { margin-top: 0; max-width: 220px; overflow: hidden; text-over
 .drawer-deliv a { color: var(--text); text-decoration: none; font-size: 13px; line-height: 1.9; }
 .drawer-deliv a:hover { color: #1a56c4; text-decoration: underline; }
 
-/* 투입 금액 */
-.deliv-monthly-card { margin-bottom: 16px; }
+/* 투입 금액 (컴팩트) */
+.deliv-monthly-card {
+  margin-bottom: 16px;
+  max-width: 560px;
+  width: fit-content;
+  min-width: 420px;
+  padding: 14px 22px;
+}
+.deliv-monthly-card h2 { margin-bottom: 10px; }
 .deliv-monthly-card h2 span { font-weight: 400; font-size: 11px; }
+.deliv-monthly-card .spend-top { margin-bottom: 0; gap: 36px; }
 .spend-top { display: flex; gap: 24px; margin-bottom: 12px; }
 .spend-val { font-size: 19px; font-weight: 800; margin-top: 3px; }
 .spend-table td { padding: 6px 4px; font-size: 13px; }
