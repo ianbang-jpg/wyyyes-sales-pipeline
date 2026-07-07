@@ -783,3 +783,103 @@ td.td-na .na-line { margin-top: 0; max-width: 220px; overflow: hidden; text-over
 .spend-top { display: flex; gap: 24px; margin-bottom: 12px; }
 .spend-val { font-size: 19px; font-weight: 800; margin-top: 3px; }
 .spend-table td { padding: 6px 4px; font-size: 13px; }
+
+/* ══ 인터랙션 폴리싱 ══ */
+
+/* 스크롤 잠금 */
+body.no-scroll { overflow: hidden; }
+
+/* 백드롭 페이드 + 드로어 슬라이드 + 모달 팝 */
+.modal-backdrop, .drawer-backdrop { animation: fadeIn .18s ease; }
+.drawer { animation: slideIn .22s cubic-bezier(.2, .8, .3, 1); }
+.modal { animation: popIn .18s cubic-bezier(.2, .8, .3, 1); }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes popIn { from { transform: scale(.96) translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* 탭 패널 페이드 */
+.tab-panel { animation: fadeIn .15s ease; }
+
+/* 토스트: 오류 스타일 + 등장 애니메이션 */
+.toast { animation: toastUp .2s cubic-bezier(.2, .8, .3, 1); }
+.toast.error { background: var(--primary); }
+@keyframes toastUp { from { transform: translate(-50%, 12px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+/* 드로어 필드 저장 플래시 */
+.flash-ok { animation: flashOk .7s ease; }
+@keyframes flashOk {
+  0% { box-shadow: 0 0 0 3px rgba(21, 128, 60, 0.35); border-color: #15803c; }
+  100% { box-shadow: none; }
+}
+
+/* 드래그 중 카드 고스트 */
+.lead-card.dragging { opacity: .35; transform: scale(.98); }
+
+/* 빈 칸반 컬럼 */
+.col-empty {
+  border: 1px dashed #d5d9e4;
+  border-radius: 8px;
+  padding: 14px;
+  text-align: center;
+  color: #b3b9c9;
+  font-size: 12px;
+}
+
+/* 정렬 가능한 헤더 힌트 */
+th[data-sort] { transition: color .12s; }
+th[data-sort]:hover { color: var(--text); background: #f4f5f9; }
+
+/* 필터 초기화 버튼 */
+.filter-reset {
+  margin-left: 12px;
+  width: 28px; height: 28px; padding: 0;
+  border-radius: 50%;
+  font-size: 13px; color: var(--muted);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.filter-reset:hover { color: var(--text); background: var(--bg); transform: rotate(-180deg); transition: transform .3s, color .12s; }
+
+/* 버튼 눌림 효과 */
+button:active { transform: scale(.97); }
+.tab-btn:active, .star-btn:active { transform: none; }
+
+/* 키보드 포커스 링 (마우스 클릭에는 안 보임) */
+:focus-visible { outline: 2px solid #4a6cf7; outline-offset: 2px; border-radius: 4px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 0; }
+
+/* 링크 일관성 */
+a { color: #1a56c4; }
+.drawer-info a, .fu-item a { text-decoration: none; }
+
+/* 커스텀 스크롤바 (WebKit) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #cdd2de; border-radius: 6px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: #aeb5c6; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* 테이블 가로 스크롤 가장자리 그림자 힌트 */
+.table-wrap {
+  background:
+    linear-gradient(to right, var(--card) 30%, transparent),
+    linear-gradient(to left, var(--card) 30%, transparent) 100% 0,
+    radial-gradient(farthest-side at 0 50%, rgba(8,10,26,.14), transparent),
+    radial-gradient(farthest-side at 100% 50%, rgba(8,10,26,.14), transparent) 100% 0;
+  background-repeat: no-repeat;
+  background-size: 46px 100%, 46px 100%, 16px 100%, 16px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+.table-wrap table { background: transparent; }
+.table-wrap th { background: transparent; }
+
+/* KPI 카드 미세 호버 */
+.kpi { transition: box-shadow .15s, transform .15s; }
+.kpi:hover { box-shadow: 0 3px 10px rgba(8, 10, 26, 0.1); transform: translateY(-1px); }
+
+/* 팔로업/액션 아이템 호버 개선 */
+.fu-item { transition: background .12s, border-color .12s; }
+.fu-item:hover { border-color: #c9cfdd; }
+
+/* 캘린더 이벤트 클릭 피드백 */
+.cal-ev { transition: transform .1s; }
+.cal-ev:active { transform: scale(.97); }

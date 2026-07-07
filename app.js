@@ -59,10 +59,14 @@
   function toast(msg) {
     const el = $("#toast");
     el.textContent = msg;
+    el.classList.toggle("error", /실패|오류|없어요/.test(msg));
     el.classList.remove("hidden");
     clearTimeout(el._t);
     el._t = setTimeout(() => el.classList.add("hidden"), 2500);
   }
+
+  // 모달/드로어 열림 시 배경 스크롤 잠금
+  const lockScroll = (on) => document.body.classList.toggle("no-scroll", on);
 
   const fmtDate = (d) => (d ? String(d).slice(0, 10) : "");
   const fmtDateTime = (d) => {
@@ -71,6 +75,19 @@
     return `${t.getFullYear()}.${String(t.getMonth() + 1).padStart(2, "0")}.${String(t.getDate()).padStart(2, "0")} ${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
   };
   const fmtNum = (n) => (n == null ? "" : Number(n).toLocaleString());
+  function fmtRel(d) {
+    if (!d) return "";
+    const diff = Date.now() - new Date(d).getTime();
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return "방금 전";
+    if (min < 60) return `${min}분 전`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr}시간 전`;
+    const day = Math.floor(hr / 24);
+    if (day === 1) return "어제";
+    if (day < 7) return `${day}일 전`;
+    return fmtDate(d);
+  }
 
   // 팔로워 구간 (드롭다운 선택, "이상"은 ↑로 표기)
   const FOLLOWER_BUCKETS = [100, 500, 1000, 2000, 3000, 5000, 10000, 50000, 100000, 500000, 1000000];
@@ -470,6 +487,45 @@
       })
     );
 
+    // 필터 초기화
+    $$(".filter-reset").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const bar = btn.closest(".filter-bar");
+        bar.querySelectorAll("select").forEach((el) => { el.value = ""; });
+        bar.querySelectorAll('input[type="search"]').forEach((el) => { el.value = ""; });
+        bar.querySelectorAll(".btn-group").forEach((g) => {
+          g.dataset.value = "";
+          [...g.children].forEach((c) => c.classList.toggle("active", c.dataset.value === ""));
+        });
+        bar.querySelectorAll(".toggle-btn.active").forEach((t) => {
+          if (t.id !== "board-select-mode") t.classList.remove("active");
+        });
+        renderAll();
+      }));
+
+    // 키보드 단축키
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        if (!$("#daypop-backdrop").classList.contains("hidden")) { closeDayPop(); return; }
+        if (!$("#deliv-modal-backdrop").classList.contains("hidden")) { closeDelivModal(); return; }
+        if (!$("#modal-backdrop").classList.contains("hidden")) { closeModal(); return; }
+        if (!$("#drawer-backdrop").classList.contains("hidden")) { closeDrawer(); return; }
+        return;
+      }
+      // 입력 중이거나 모달이 열려 있으면 무시
+      const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+      const modalOpen = ["#modal-backdrop", "#drawer-backdrop", "#daypop-backdrop", "#deliv-modal-backdrop"]
+        .some((sel2) => !$(sel2).classList.contains("hidden"));
+      if (typing || modalOpen || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "/") {
+        const search = { board: "#board-search", table: "#table-search", deliv: "#deliv-search" }[state.tab];
+        if (search) { e.preventDefault(); $(search).focus(); }
+      } else if (e.key === "n") {
+        e.preventDefault();
+        openModal(null);
+      }
+    });
+
     // 테이블 정렬
     $$("#leads-table th").forEach((th) =>
       th.addEventListener("click", () => {
@@ -613,7 +669,7 @@
             <div class="tl-dot"></div>
             <div class="tl-body">
               <div><b>${esc(a.leads?.name || "")}</b> — ${esc(a.action)}${a.detail ? ": " + esc(a.detail) : ""}</div>
-              <div class="tl-meta">${esc(a.actor || "")} · ${fmtDateTime(a.created_at)}</div>
+              <div class="tl-meta" title="${fmtDateTime(a.created_at)}">${esc(a.actor || "")} · ${fmtRel(a.created_at)}</div>
             </div>
           </div>`).join("") || `<span class="muted">아직 활동 기록이 없어요.</span>`;
       });
@@ -935,8 +991,9 @@
       $("#deliv-date").value = todayStr();
     }
     $("#deliv-modal-backdrop").classList.remove("hidden");
+    lockScroll(true);
   }
-  function closeDelivModal() { $("#deliv-modal-backdrop").classList.add("hidden"); }
+  function closeDelivModal() { $("#deliv-modal-backdrop").classList.add("hidden"); lockScroll(false); }
 
   async function saveDeliv(e) {
     e.preventDefault();
@@ -1163,6 +1220,7 @@
 
     renderDayPopNotes();
     $("#daypop-backdrop").classList.remove("hidden");
+    lockScroll(true);
     $("#daypop-input").focus();
   }
 
@@ -1186,6 +1244,7 @@
 
   function closeDayPop() {
     $("#daypop-backdrop").classList.add("hidden");
+    lockScroll(false);
     dayPopDate = null;
   }
 
@@ -1312,6 +1371,7 @@
             </span>
           </div>
           <div class="board-cards">
+            ${cards.length === 0 ? `<div class="col-empty">비어 있음</div>` : ""}
             ${cards.map((l) => `
               <div class="lead-card ${selectable && state.selected.has(l.id) ? "card-selected" : ""}" draggable="${selectable ? "false" : "true"}" data-id="${l.id}">
                 <div class="lc-top">
@@ -1360,7 +1420,11 @@
 
     // 드래그 & 드롭 / 선택 모드
     root.querySelectorAll(".lead-card").forEach((card) => {
-      card.addEventListener("dragstart", (e) => e.dataTransfer.setData("text/plain", card.dataset.id));
+      card.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("text/plain", card.dataset.id);
+        requestAnimationFrame(() => card.classList.add("dragging"));
+      });
+      card.addEventListener("dragend", () => card.classList.remove("dragging"));
       card.addEventListener("click", () => {
         if (selectable) {
           if (marqueeSuppressClick) return;
@@ -1490,11 +1554,13 @@
       if (preset && preset.stage) form.elements["stage"].value = preset.stage;
     }
     $("#modal-backdrop").classList.remove("hidden");
+    lockScroll(true);
     form.elements["name"].focus();
   }
 
   function closeModal() {
     $("#modal-backdrop").classList.add("hidden");
+    lockScroll(false);
     state.editingId = null;
   }
 
@@ -1659,6 +1725,7 @@
       metricsHtml +
       `<dt>등록일</dt><dd class="muted">${fmtDateTime(l.created_at)}</dd>`;
     $("#drawer-backdrop").classList.remove("hidden");
+    lockScroll(true);
     loadDrawerTimeline(id);
   }
 
@@ -1699,6 +1766,8 @@
     const { error } = await sb.from("leads").update(patch).eq("id", l.id);
     if (error) { toast("저장 실패: " + error.message); return; }
     Object.assign(l, patch);
+    el.classList.add("flash-ok");
+    setTimeout(() => el.classList.remove("flash-ok"), 700);
     if (key === "stage") {
       logActivity(l.id, "단계 변경", `${prevStage} → ${val}${patch.closed_reason ? ` (${patch.closed_reason})` : ""}`).then(() => loadDrawerTimeline(l.id));
       toast(`${l.name}: ${prevStage} → ${val}`);
@@ -1717,13 +1786,14 @@
         <div class="tl-dot"></div>
         <div class="tl-body">
           <div><b>${esc(a.action)}</b>${a.detail ? " — " + esc(a.detail) : ""}</div>
-          <div class="tl-meta">${esc(a.actor || "")} · ${fmtDateTime(a.created_at)}</div>
+          <div class="tl-meta" title="${fmtDateTime(a.created_at)}">${esc(a.actor || "")} · ${fmtRel(a.created_at)}</div>
         </div>
       </div>`).join("") || `<span class="muted">기록 없음</span>`;
   }
 
   function closeDrawer() {
     $("#drawer-backdrop").classList.add("hidden");
+    lockScroll(false);
     state.drawerId = null;
   }
 
