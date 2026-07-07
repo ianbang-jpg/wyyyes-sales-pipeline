@@ -42,6 +42,7 @@
           <button class="tab-btn" data-tab="cal">캘린더</button>
           <button class="tab-btn" data-tab="ret">리텐션</button>
           <button class="tab-btn" data-tab="deliv">협업/광고</button>
+          <button class="tab-btn" data-tab="hist">히스토리</button>
         </nav>
       </div>
       <div class="topbar-right">
@@ -155,6 +156,7 @@
         <span class="spacer"></span>
         <select id="bulk-category"><option value="">카테고리 변경…</option></select>
         <select id="bulk-stage"><option value="">단계 이동…</option></select>
+        <button id="bulk-archive">📦 아카이브</button>
         <button id="bulk-delete" class="danger">삭제</button>
         <button id="bulk-clear">선택 해제</button>
       </div>
@@ -258,6 +260,31 @@
         <div id="deliv-monthly"></div>
       </section>
       <div id="deliv-grid" class="deliv-grid"></div>
+    </main>
+
+    <!-- 히스토리 (아카이브) -->
+    <main id="tab-hist" class="tab-panel hidden">
+      <div class="filter-bar">
+        <input type="search" id="hist-search" placeholder="🔍 이름 검색">
+        <div class="f-group"><span class="f-label">담당자</span><select id="hist-owner-filter"><option value="">전체</option></select></div>
+        <span id="hist-count" class="muted" style="margin-left:14px"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="hist-table">
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>유형</th>
+              <th>카테고리</th>
+              <th>마지막 단계</th>
+              <th>담당자</th>
+              <th>아카이브 일시</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </main>
   </div>
 
@@ -436,6 +463,7 @@
       </form>
       <div id="drawer-timeline" class="timeline"></div>
       <div class="drawer-foot">
+        <button id="drawer-archive">📦 아카이브</button>
         <button id="drawer-delete" class="danger">이 항목 삭제</button>
       </div>
     </aside>

@@ -884,3 +884,8 @@ a { color: #1a56c4; }
 .cal-ev { transition: transform .1s; }
 .cal-ev:active { transform: scale(.97); }
 .deliv-thumb.x { background: linear-gradient(135deg, #eceef2, #dfe3ea); }
+
+/* 히스토리 탭 */
+.hist-restore { font-size: 12px; padding: 4px 10px; }
+#hist-table tbody tr { cursor: pointer; }
+.drawer-foot { display: flex; justify-content: space-between; gap: 8px; text-align: left; }

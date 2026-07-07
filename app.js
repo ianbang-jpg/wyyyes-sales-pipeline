@@ -52,6 +52,7 @@
     retSortKey: "idle",
     retSortDir: "desc",
     deliverables: [],
+    archivedLeads: [],
     profiles: {}, // owner -> {avatar, memo}
   };
 
@@ -256,9 +257,11 @@
   async function loadLeads() {
     const { data, error } = await sb.from("leads").select("*").order("updated_at", { ascending: false });
     if (error) { toast("불러오기 실패: " + error.message); return; }
-    state.leads = data || [];
+    state.leads = (data || []).filter((l) => !l.archived_at);
+    state.archivedLeads = (data || []).filter((l) => l.archived_at);
     renderAll();
   }
+  const allLeads = () => [...state.leads, ...state.archivedLeads];
 
   function subscribeRealtime() {
     sb.channel("leads-changes")
@@ -326,6 +329,13 @@
         if (reason !== null && reason.trim()) patch.closed_reason = reason.trim();
       }
       await bulkApply(patch, "단계 변경", `→ ${v} (일괄)`, `'${v}' 단계로 이동`);
+    });
+    $("#bulk-archive").addEventListener("click", async () => {
+      const ids = [...state.selected];
+      if (!ids.length) { toast("선택된 카드가 없어요"); return; }
+      state.selected.clear();
+      updateBulkBar();
+      await setArchived(ids, true);
     });
     $("#bulk-delete").addEventListener("click", async () => {
       const ids = [...state.selected];
@@ -439,14 +449,14 @@
     ["#dash-category-filter", "#board-category-filter", "#table-category-filter"].forEach((sel) => {
       $(sel).innerHTML += (CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("");
     });
-    ["#table-owner-filter", "#board-owner-filter", "#dash-owner-filter", "#ret-owner-filter", "#deliv-owner-filter"].forEach((sel) => {
+    ["#table-owner-filter", "#board-owner-filter", "#dash-owner-filter", "#ret-owner-filter", "#deliv-owner-filter", "#hist-owner-filter"].forEach((sel) => {
       $(sel).innerHTML += OWNERS.map((o) => `<option>${esc(o)}</option>`).join("");
     });
 
     // 필터 이벤트
     ["#dash-owner-filter", "#dash-category-filter", "#board-owner-filter", "#board-category-filter", "#board-search",
      "#table-search", "#table-stage-filter", "#table-channel-filter", "#table-category-filter", "#table-owner-filter",
-     "#ret-owner-filter", "#deliv-owner-filter", "#deliv-search"]
+     "#ret-owner-filter", "#deliv-owner-filter", "#deliv-search", "#hist-search", "#hist-owner-filter"]
       .forEach((sel) => $(sel).addEventListener("input", renderAll));
 
     // 유형별 필드 토글
@@ -471,6 +481,12 @@
     $("#drawer-info").addEventListener("change", onDrawerFieldChange);
     $("#drawer-name-input").addEventListener("change", (e) => onDrawerFieldChange({ target: e.target }));
     $("#drawer-name-input").dataset.field = "name";
+    $("#drawer-archive").addEventListener("click", async () => {
+      const l = allLeads().find((x) => x.id === state.drawerId);
+      if (!l) return;
+      const ok = await setArchived([l.id], !l.archived_at);
+      if (ok) closeDrawer();
+    });
     $("#drawer-delete").addEventListener("click", () => {
       const id = state.drawerId;
       deleteLead(id).then((ok) => { if (ok) closeDrawer(); });
@@ -567,6 +583,7 @@
     if (state.tab === "cal") renderCal();
     if (state.tab === "ret") renderRetention();
     if (state.tab === "deliv") renderDeliv();
+    if (state.tab === "hist") renderHist();
   }
 
   function renderDashboard() {
@@ -852,6 +869,7 @@
     const { data } = await sb.from("deliverables").select("*").order("posted_at", { ascending: false, nullsFirst: false });
     state.deliverables = data || [];
     if (state.tab === "deliv") renderDeliv();
+    if (state.tab === "hist") renderHist();
   }
 
   function delivPlatform(url) {
@@ -872,7 +890,7 @@
     const pf = fVal("#deliv-platform-filter");
     const ownerF = $("#deliv-owner-filter").value;
     const q = $("#deliv-search").value.trim().toLowerCase();
-    const leadById = Object.fromEntries(state.leads.map((l) => [l.id, l]));
+    const leadById = Object.fromEntries(allLeads().map((l) => [l.id, l]));
     const rows = state.deliverables.filter((d) => {
       const lead = leadById[d.lead_id];
       return (!pf || delivPlatform(d.url) === pf) && (!ownerF || (lead && lead.owner === ownerF)) &&
@@ -1116,6 +1134,46 @@
 
     $$("#ret-table tbody tr[data-id]").forEach((tr) =>
       tr.addEventListener("click", () => openDrawer(tr.dataset.id)));
+  }
+
+  // ── 아카이브 ──
+  async function setArchived(ids, on) {
+    const { error } = await sb.from("leads")
+      .update({ archived_at: on ? new Date().toISOString() : null }).in("id", ids);
+    if (error) { toast("실패: " + error.message); return false; }
+    await sb.from("activities").insert(ids.map((id) => ({
+      lead_id: id, action: on ? "아카이브" : "복원", detail: null, actor: me() })));
+    toast(`${ids.length}건 ${on ? "아카이브했어요 — 히스토리 탭에서 볼 수 있어요" : "복원했어요"}`);
+    loadLeads();
+    return true;
+  }
+
+  function renderHist() {
+    const q = $("#hist-search").value.trim().toLowerCase();
+    const ownerF = $("#hist-owner-filter").value;
+    const rows = state.archivedLeads
+      .filter((l) => (!ownerF || l.owner === ownerF) && (!q || l.name.toLowerCase().includes(q)))
+      .sort((a, b) => String(b.archived_at).localeCompare(String(a.archived_at)));
+    $("#hist-count").textContent = `${rows.length}건`;
+    $("#hist-table tbody").innerHTML = rows.map((l) => `
+      <tr data-id="${l.id}">
+        <td class="td-name">${esc(l.name)}</td>
+        <td><span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span></td>
+        <td>${catChip(l.category)}</td>
+        <td><span class="stage-chip stage-${l.stage}">${l.stage}</span></td>
+        <td>${ownerBadge(l.owner)}</td>
+        <td class="muted" title="${fmtDateTime(l.archived_at)}">${fmtRel(l.archived_at)}</td>
+        <td><button class="hist-restore" data-restore="${l.id}">↩️ 복원</button></td>
+      </tr>`).join("") ||
+      `<tr><td colspan="7" class="muted" style="text-align:center;padding:36px">아카이브된 항목이 없어요. 완료된 건은 카드 상세 하단의 "📦 아카이브"로 정리할 수 있어요.</td></tr>`;
+
+    $$("#hist-table tbody tr[data-id]").forEach((tr) =>
+      tr.addEventListener("click", () => openDrawer(tr.dataset.id)));
+    $$("#hist-table .hist-restore").forEach((btn) =>
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setArchived([btn.dataset.restore], false);
+      }));
   }
 
   // ── 캘린더 ──
@@ -1636,7 +1694,7 @@
   }
 
   async function deleteLead(id = state.editingId) {
-    const l = state.leads.find((x) => x.id === id);
+    const l = allLeads().find((x) => x.id === id);
     if (!l || !confirm(`"${l.name}" 항목을 삭제할까요? 히스토리도 함께 삭제됩니다.`)) return false;
     const { error } = await sb.from("leads").delete().eq("id", id);
     if (error) { toast("삭제 실패: " + error.message); return false; }
@@ -1696,8 +1754,9 @@
   }
 
   async function openDrawer(id) {
-    const l = state.leads.find((x) => x.id === id);
+    const l = allLeads().find((x) => x.id === id);
     if (!l) return;
+    $("#drawer-archive").textContent = l.archived_at ? "↩️ 복원" : "📦 아카이브";
     state.drawerId = id;
     $("#drawer-type").innerHTML = `<span class="type-badge type-${l.type}">${TYPE_LABEL[l.type]}</span>`;
     $("#drawer-name-input").value = l.name;
@@ -1741,7 +1800,7 @@
   async function onDrawerFieldChange(e) {
     const el = e.target.closest("[data-field]");
     if (!el || !state.drawerId) return;
-    const l = state.leads.find((x) => x.id === state.drawerId);
+    const l = allLeads().find((x) => x.id === state.drawerId);
     if (!l) return;
     const key = el.dataset.field;
     const val = el.value.trim();
