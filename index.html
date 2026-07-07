@@ -41,7 +41,7 @@
           <button class="tab-btn" data-tab="table">테이블</button>
           <button class="tab-btn" data-tab="cal">캘린더</button>
           <button class="tab-btn" data-tab="ret">리텐션</button>
-          <button class="tab-btn" data-tab="deliv">결과물</button>
+          <button class="tab-btn" data-tab="deliv">협업/광고</button>
         </nav>
       </div>
       <div class="topbar-right">
@@ -117,6 +117,10 @@
       </div>
       <section class="kpi-row" id="my-kpi"></section>
       <div class="dash-grid my-grid">
+        <section class="card">
+          <h2>💸 협업/광고 투입 금액</h2>
+          <div id="my-spend"></div>
+        </section>
         <section class="card">
           <h2>📒 내 메모장</h2>
           <textarea id="my-memo" rows="7" placeholder="자유롭게 메모하세요. 입력 후 바깥을 클릭하면 자동 저장됩니다."></textarea>
@@ -246,6 +250,10 @@
         <button id="deliv-add-btn" class="primary">+ 결과물 등록</button>
       </div>
       <section class="kpi-row" id="deliv-kpi"></section>
+      <section class="card deliv-monthly-card">
+        <h2>월별 투입 금액 <span class="muted">(실제 단가 기준, 없으면 계획 단가)</span></h2>
+        <div id="deliv-monthly"></div>
+      </section>
       <div id="deliv-grid" class="deliv-grid"></div>
     </main>
   </div>
@@ -350,6 +358,12 @@
           </label>
           <label class="influencer-only span2">협업 유형
             <input name="extra_collab_type" placeholder="예: 라이브 출연, 공동 브레이크, 홍보 콘텐츠">
+          </label>
+          <label class="influencer-only">계획 단가 (원)
+            <input name="extra_planned_rate" type="number" min="0" placeholder="예: 100000">
+          </label>
+          <label class="influencer-only">실제 단가 (원)
+            <input name="extra_actual_rate" type="number" min="0">
           </label>
           <label>와이스 닉네임
             <input name="nickname">

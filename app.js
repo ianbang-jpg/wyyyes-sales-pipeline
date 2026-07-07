@@ -129,6 +129,21 @@
     renderAll();
   }
 
+  // 단가 파싱: 100000, "10만원", "1.5만" 등 → 원 단위 숫자
+  function parseWon(v) {
+    if (v == null || v === "") return null;
+    if (typeof v === "number") return v;
+    const s2 = String(v).replace(/[,원\s]/g, "");
+    const m = s2.match(/^([\d.]+)(만|천|억)?$/);
+    if (!m) return null;
+    const unit = { "만": 1e4, "천": 1e3, "억": 1e8 }[m[2]] || 1;
+    return Math.round(parseFloat(m[1]) * unit);
+  }
+  // 협업 건당 투입 비용: 실제 단가 우선, 없으면 계획 단가
+  function leadRate(l) {
+    return parseWon(l?.extra?.actual_rate) ?? parseWon(l?.extra?.planned_rate);
+  }
+
   // 온/오프라인 칩
   const ctChip = (v) => (v ? `<span class="ct-chip ct-${v}">${v === "온라인" ? "온" : "오프"}</span>` : "");
   const catChip = (v) => (v ? `<span class="cat-chip cat-${esc(v)}">${esc(v)}</span>` : "");
@@ -812,17 +827,35 @@
     const thisMonth = rows.filter((d) => (d.posted_at || d.created_at || "").slice(0, 7) === monthStart).length;
     const uniqInf = new Set(rows.map((d) => d.lead_id)).size;
     const totalViews = rows.reduce((s2, d) => s2 + (d.views || 0), 0);
+    const costOf = (d) => leadRate(leadById[d.lead_id]) || 0;
+    const totalCost = rows.reduce((s2, d) => s2 + costOf(d), 0);
+    const monthCost = rows.filter((d) => (d.posted_at || d.created_at || "").slice(0, 7) === monthStart)
+      .reduce((s2, d) => s2 + costOf(d), 0);
     $("#deliv-kpi").innerHTML = [
       { label: "총 결과물", value: rows.length, sub: "등록된 콘텐츠" },
       { label: "이번 달 게시", value: thisMonth, sub: "게시일 기준" },
       { label: "참여 인플루언서", value: uniqInf, sub: "결과물 보유" },
-      { label: "총 조회수", value: fmtNum(totalViews), sub: "입력된 지표 합계" },
+      { label: "총 조회수", value: fmtNum(totalViews), sub: "수집된 지표 합계" },
+      { label: "총 투입 금액", value: `${fmtNum(totalCost)}원`, sub: `이번 달 ${fmtNum(monthCost)}원` },
     ].map((x) => `
       <div class="kpi">
         <div class="kpi-label">${x.label}</div>
         <div class="kpi-value">${x.value}</div>
         <div class="kpi-sub">${x.sub}</div>
       </div>`).join("");
+
+    // 월별 투입 금액
+    const byMonth = {};
+    rows.forEach((d) => {
+      const mkey = (d.posted_at || d.created_at || "").slice(0, 7);
+      if (!mkey) return;
+      byMonth[mkey] = (byMonth[mkey] || 0) + costOf(d);
+    });
+    const months = Object.entries(byMonth).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 6);
+    const maxCost = Math.max(1, ...months.map(([, c]) => c));
+    $("#deliv-monthly").innerHTML = months.map(([mkey, c]) =>
+      barRow(`${mkey.slice(0, 4)}년 ${Number(mkey.slice(5))}월`, Math.round(c / 10000), Math.round(maxCost / 10000) || 1, `<span class="bar-pct">만원</span>`)
+    ).join("") || `<span class="muted">집계할 투입 금액이 없어요. 인플루언서 카드에 실제 단가를 입력하면 결과물별로 합산됩니다.</span>`;
 
     // 갤러리
     $("#deliv-grid").innerHTML = rows.map((d) => {
@@ -1219,6 +1252,31 @@
     $$("#my-actions .fu-item, #my-followup .fu-item").forEach((el) =>
       el.addEventListener("click", () => openDrawer(el.dataset.id)));
 
+    // 협업/광고 투입 금액 (내 담당 인플루언서)
+    const myInfIds = new Set(mine.filter((l) => l.type === "influencer").map((l) => l.id));
+    const leadById2 = Object.fromEntries(state.leads.map((l) => [l.id, l]));
+    const myDelivs = (state.deliverables || []).filter((d) => myInfIds.has(d.lead_id));
+    const cost2 = (d) => leadRate(leadById2[d.lead_id]) || 0;
+    const spendTotal = myDelivs.reduce((s2, d) => s2 + cost2(d), 0);
+    const curMonth = today.slice(0, 7);
+    const spendMonth = myDelivs.filter((d) => (d.posted_at || d.created_at || "").slice(0, 7) === curMonth)
+      .reduce((s2, d) => s2 + cost2(d), 0);
+    const byM = {};
+    myDelivs.forEach((d) => {
+      const k2 = (d.posted_at || d.created_at || "").slice(0, 7);
+      if (k2) byM[k2] = (byM[k2] || 0) + cost2(d);
+    });
+    const mRows = Object.entries(byM).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 4);
+    $("#my-spend").innerHTML = `
+      <div class="spend-top">
+        <div><div class="kpi-label">전체</div><div class="spend-val">${fmtNum(spendTotal)}원</div></div>
+        <div><div class="kpi-label">이번 달</div><div class="spend-val">${fmtNum(spendMonth)}원</div></div>
+        <div><div class="kpi-label">결과물</div><div class="spend-val">${myDelivs.length}건</div></div>
+      </div>
+      ${mRows.length ? `<table class="cmp-table spend-table"><tbody>${mRows.map(([k2, c]) =>
+        `<tr><td>${k2.slice(0, 4)}.${k2.slice(5)}</td><td style="text-align:right">${fmtNum(c)}원</td></tr>`).join("")}</tbody></table>` : ""}
+      <p class="muted cmp-note">내 담당 인플루언서 결과물 × 단가 (실제 우선, 없으면 계획)</p>`;
+
     // 내 보드 (활성 단계만, 유형 합집합)
     renderBoardInto("#my-board", active, ALL_STAGES);
   }
@@ -1269,6 +1327,15 @@
                   ${catChip(l.category)}
                   ${l.followers ? `<span class="lc-chip">👥 ${followerLabel(l.followers)}</span>` : ""}
                 </div>
+                ${(() => {
+                  const dls = (state.deliverables || []).filter((d) => d.lead_id === l.id);
+                  if (!dls.length) return "";
+                  return `<div class="lc-deliv">${dls.slice(0, 4).map((d) => {
+                    const p = delivPlatform(d.url);
+                    const ic = p === "youtube" ? chIcon("유튜브") : (p === "reels" || p === "instagram") ? chIcon("인스타그램") : "🔗";
+                    return `<a href="${esc(d.url)}" target="_blank" rel="noopener" class="lc-deliv-link" title="${esc(d.title || d.url)}" onclick="event.stopPropagation()">${ic}</a>`;
+                  }).join("")}${dls.length > 4 ? `<span class="muted">+${dls.length - 4}</span>` : ""}</div>`;
+                })()}
                 ${l.extra?.metrics ? `<div class="lc-metrics">🎥 ${l.extra.metrics.live_count}회${l.extra.metrics.last_live_at ? ` · ${fmtDate(l.extra.metrics.last_live_at).slice(5)}` : ""} · 💰 ${fmtNum(l.extra.metrics.acc_sold_amount)}원</div>` : ""}
                 ${naLine(l)}
                 ${l.notes ? `<div class="lc-notes">${esc(l.notes)}</div>` : ""}
@@ -1465,7 +1532,12 @@
       approved_at: f["approved_at"].value || null,
       owner: f["owner"].value || null,
       notes: f["notes"].value.trim() || null,
-      extra: { collab_type: f["extra_collab_type"].value.trim() || undefined },
+      extra: {
+        ...(state.editingId ? (state.leads.find((x) => x.id === state.editingId)?.extra || {}) : {}),
+        collab_type: f["extra_collab_type"].value.trim() || undefined,
+        planned_rate: f["extra_planned_rate"].value ? Number(f["extra_planned_rate"].value) : undefined,
+        actual_rate: f["extra_actual_rate"].value ? Number(f["extra_actual_rate"].value) : undefined,
+      },
     };
 
     if (state.editingId) {
@@ -1506,12 +1578,14 @@
     channel_type: "온/오프라인", followers: "팔로워", shop_detail: "샵 상세",
     business: "사업자 여부", region: "지역", main_products: "주요 상품",
     next_action: "다음 액션", next_action_due: "액션 기한", closed_reason: "보류/제외 사유", contact_point: "컨택포인트", contact_date: "컨택일",
-    collab_type: "협업 유형", nickname: "닉네임", approved_at: "승인일",
+    collab_type: "협업 유형", planned_rate: "계획 단가", actual_rate: "실제 단가",
+    nickname: "닉네임", approved_at: "승인일",
     owner: "담당자", notes: "비고", name: "이름",
   };
 
   function drawerFieldHtml(l, key) {
-    const raw = key === "collab_type" ? (l.extra?.collab_type ?? "") : (l[key] ?? "");
+    const EXTRA_KEYS = ["collab_type", "planned_rate", "actual_rate"];
+    const raw = EXTRA_KEYS.includes(key) ? (l.extra?.[key] ?? "") : (l[key] ?? "");
     const val = esc(raw);
     switch (key) {
       case "stage": {
@@ -1560,8 +1634,16 @@
       "next_action", "next_action_due",
       "category", "owner", "link", "channel", "channel_type", "followers",
       "business", "region", "main_products", "contact_point", "contact_date",
-      ...(l.type === "influencer" ? ["collab_type"] : []),
+      ...(l.type === "influencer" ? ["collab_type", "planned_rate", "actual_rate"] : []),
       "nickname", "approved_at", "notes"];
+    const myDeliv = (state.deliverables || []).filter((d) => d.lead_id === l.id);
+    const delivRowHtml = myDeliv.length ? `
+      <dt>협업 결과물</dt>
+      <dd class="drawer-deliv">${myDeliv.map((d) => {
+        const p = delivPlatform(d.url);
+        const ic = p === "youtube" ? chIcon("유튜브") : (p === "reels" || p === "instagram") ? chIcon("인스타그램") : "🔗";
+        return `<a href="${esc(d.url)}" target="_blank" rel="noopener">${ic} ${esc(d.title || d.url.replace(/^https?:\/\//, "").slice(0, 30))} ↗</a>`;
+      }).join("<br>")}</dd>` : "";
     const mt = l.extra?.metrics;
     const metricsHtml = mt ? `
       <dt>실활동 지표</dt>
@@ -1573,6 +1655,7 @@
       </dd>` : "";
     $("#drawer-info").innerHTML =
       keys.map((k) => `<dt>${FIELD_LABELS[k]}</dt><dd>${drawerFieldHtml(l, k)}</dd>`).join("") +
+      delivRowHtml +
       metricsHtml +
       `<dt>등록일</dt><dd class="muted">${fmtDateTime(l.created_at)}</dd>`;
     $("#drawer-backdrop").classList.remove("hidden");
@@ -1589,7 +1672,8 @@
     const val = el.value.trim();
 
     let patch;
-    if (key === "collab_type") patch = { extra: { ...(l.extra || {}), collab_type: val || undefined } };
+    if (["collab_type", "planned_rate", "actual_rate"].includes(key))
+      patch = { extra: { ...(l.extra || {}), [key]: val || undefined } };
     else if (key === "followers") patch = { followers: val ? Number(val) : null };
     else if (key === "stage") {
       if (!val || val === l.stage) return;
