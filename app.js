@@ -1354,7 +1354,7 @@
         <td><input class="br-channel" list="channel-options"></td>
         <td><select class="br-owner"><option value=""></option>${OWNERS.map((o) => `<option ${o === me() ? "selected" : ""}>${esc(o)}</option>`).join("")}</select></td>
         <td><input class="br-link" placeholder="https://…"></td>
-        <td><input class="br-followers" placeholder="3000, 1.5만"></td>
+        <td><select class="br-followers">${followerOptions("")}</select></td>
         <td><input class="br-notes"></td>
         <td><button type="button" class="br-del note-del" title="행 삭제">✕</button></td>
       </tr>`;
@@ -1408,7 +1408,10 @@
       set(".br-channel", cols[4]);
       if (cols[5] && OWNERS.includes(cols[5].trim())) tr.querySelector(".br-owner").value = cols[5].trim();
       set(".br-link", cols[6]);
-      set(".br-followers", cols[7]);
+      if (cols[7] && cols[7].trim()) {
+        const fv = followerFloor(parseWon(cols[7]));
+        if (fv) tr.querySelector(".br-followers").value = fv;
+      }
       set(".br-notes", cols[8]);
       tr = tr.nextElementSibling;
     });
@@ -1425,7 +1428,7 @@
         channel: tr.querySelector(".br-channel").value.trim() || null,
         owner: tr.querySelector(".br-owner").value || null,
         link: tr.querySelector(".br-link").value.trim() || null,
-        followers: parseWon(tr.querySelector(".br-followers").value.trim()) || null,
+        followers: tr.querySelector(".br-followers").value ? Number(tr.querySelector(".br-followers").value) : null,
         notes: tr.querySelector(".br-notes").value.trim() || null,
         channel_type: "온라인",
       }))

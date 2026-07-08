@@ -909,12 +909,25 @@ a { color: #1a56c4; }
   background: var(--bg); position: static; cursor: default;
   border-bottom: 1px solid var(--border);
 }
-#bulkreg-table td { padding: 3px; border-bottom: 1px solid #f0f1f5; }
-#bulkreg-table input, #bulkreg-table select {
-  border-color: transparent; border-radius: 6px;
-  padding: 6px 8px; font-size: 13px;
-  background: transparent; width: 100%;
+#bulkreg-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid #f0f1f5;
+  border-right: 1px solid #f0f1f5;
 }
-#bulkreg-table input:hover, #bulkreg-table select:hover { background: var(--bg); }
-#bulkreg-table input:focus, #bulkreg-table select:focus { background: #fff; border-color: var(--navy); }
+#bulkreg-table td:last-child { border-right: none; }
+#bulkreg-table th { border-right: 1px solid var(--border); }
+#bulkreg-table th:last-child { border-right: none; }
+#bulkreg-table input, #bulkreg-table select {
+  border: 1px solid var(--border); border-radius: 7px;
+  padding: 6px 8px; font-size: 13px;
+  background: #fff; width: 100%;
+}
+#bulkreg-table select { padding-right: 24px; }
+#bulkreg-table input:focus, #bulkreg-table select:focus { border-color: var(--navy); }
 .bulkreg .modal-actions { margin-top: 16px; }
+
+/* 초록 버튼 (일괄 등록) */
+button.success {
+  background: #15803c; border-color: #15803c; color: #fff; font-weight: 700;
+}
+button.success:hover { background: #106b31; border-color: #106b31; color: #fff; }
