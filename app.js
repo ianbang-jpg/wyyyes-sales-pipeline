@@ -464,6 +464,27 @@
 
     // 버튼
     $("#add-btn").addEventListener("click", () => openModal(null));
+    $("#bulkreg-btn").addEventListener("click", openBulkReg);
+    $("#bulkreg-close").addEventListener("click", closeBulkReg);
+    $("#bulkreg-cancel").addEventListener("click", closeBulkReg);
+    $("#bulkreg-backdrop").addEventListener("click", (e) => { if (e.target.id === "bulkreg-backdrop") closeBulkReg(); });
+    $("#bulkreg-addrow").addEventListener("click", () => brAddRows(1));
+    $("#bulkreg-save").addEventListener("click", saveBulkReg);
+    $("#bulkreg-table").addEventListener("input", brUpdateCount);
+    $("#bulkreg-table").addEventListener("paste", (e) => {
+      if (e.target.classList.contains("br-name")) brPaste(e);
+    });
+    $("#bulkreg-table").addEventListener("change", (e) => {
+      if (e.target.classList.contains("br-type")) {
+        const tr = e.target.closest("tr");
+        tr.querySelector(".br-stage").innerHTML = brStageOptions(e.target.value, "발굴");
+      }
+      if (e.target.classList.contains("br-del")) return;
+    });
+    $("#bulkreg-table").addEventListener("click", (e) => {
+      const del = e.target.closest(".br-del");
+      if (del) { del.closest("tr").remove(); brUpdateCount(); }
+    });
     $("#export-btn").addEventListener("click", exportCsv);
     $("#modal-cancel").addEventListener("click", closeModal);
     $("#modal-close").addEventListener("click", closeModal);
@@ -524,6 +545,7 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         if (!$("#daypop-backdrop").classList.contains("hidden")) { closeDayPop(); return; }
+        if (!$("#bulkreg-backdrop").classList.contains("hidden")) { closeBulkReg(); return; }
         if (!$("#deliv-modal-backdrop").classList.contains("hidden")) { closeDelivModal(); return; }
         if (!$("#modal-backdrop").classList.contains("hidden")) { closeModal(); return; }
         if (!$("#drawer-backdrop").classList.contains("hidden")) { closeDrawer(); return; }
@@ -531,7 +553,7 @@
       }
       // 입력 중이거나 모달이 열려 있으면 무시
       const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
-      const modalOpen = ["#modal-backdrop", "#drawer-backdrop", "#daypop-backdrop", "#deliv-modal-backdrop"]
+      const modalOpen = ["#modal-backdrop", "#drawer-backdrop", "#daypop-backdrop", "#deliv-modal-backdrop", "#bulkreg-backdrop"]
         .some((sel2) => !$(sel2).classList.contains("hidden"));
       if (typing || modalOpen || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "/") {
@@ -1312,6 +1334,126 @@
     $("#daypop-backdrop").classList.add("hidden");
     lockScroll(false);
     dayPopDate = null;
+  }
+
+  // ── 일괄 등록 ──
+  const BR_TYPE = { "딜러": "dealer", "인플루언서": "influencer", "dealer": "dealer", "influencer": "influencer" };
+
+  function brStageOptions(type, selected) {
+    return [...stagesFor(type), ...CLOSED_STAGES].map((st) =>
+      `<option ${st === selected ? "selected" : ""}>${st}</option>`).join("");
+  }
+
+  function brRowHtml() {
+    return `
+      <tr>
+        <td><input class="br-name" placeholder="이름"></td>
+        <td><select class="br-type"><option value="dealer">딜러</option><option value="influencer">인플루언서</option></select></td>
+        <td><select class="br-stage">${brStageOptions("dealer", "발굴")}</select></td>
+        <td><select class="br-cat"><option value=""></option>${(CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("")}</select></td>
+        <td><input class="br-channel" list="channel-options"></td>
+        <td><select class="br-owner"><option value=""></option>${OWNERS.map((o) => `<option ${o === me() ? "selected" : ""}>${esc(o)}</option>`).join("")}</select></td>
+        <td><input class="br-link" placeholder="https://…"></td>
+        <td><input class="br-followers" placeholder="3000, 1.5만"></td>
+        <td><input class="br-notes"></td>
+        <td><button type="button" class="br-del note-del" title="행 삭제">✕</button></td>
+      </tr>`;
+  }
+
+  function brAddRows(n = 1) {
+    const tb = $("#bulkreg-table tbody");
+    for (let i = 0; i < n; i++) tb.insertAdjacentHTML("beforeend", brRowHtml());
+  }
+
+  function brUpdateCount() {
+    const n = [...$$("#bulkreg-table .br-name")].filter((i) => i.value.trim()).length;
+    $("#bulkreg-count").textContent = n ? `${n}명 등록 대기` : "";
+  }
+
+  function openBulkReg() {
+    $("#bulkreg-table tbody").innerHTML = "";
+    brAddRows(5);
+    brUpdateCount();
+    $("#bulkreg-backdrop").classList.remove("hidden");
+    lockScroll(true);
+    $("#bulkreg-table .br-name").focus();
+  }
+  function closeBulkReg() { $("#bulkreg-backdrop").classList.add("hidden"); lockScroll(false); }
+
+  // TSV 붙여넣기 → 행 자동 채우기
+  function brPaste(e) {
+    const text = (e.clipboardData || window.clipboardData).getData("text");
+    if (!/[\t\n]/.test(text)) return; // 단일 값이면 기본 동작
+    e.preventDefault();
+    const startRow = e.target.closest("tr");
+    const tb = $("#bulkreg-table tbody");
+    const lines = text.split(/\r?\n/).filter((ln) => ln.trim());
+    let tr = startRow;
+    lines.forEach((line) => {
+      if (!tr) { brAddRows(1); tr = tb.lastElementChild; }
+      const cols = line.split("\t");
+      const set = (sel, v) => { const el = tr.querySelector(sel); if (el && v !== undefined && v.trim() !== "") el.value = v.trim(); };
+      set(".br-name", cols[0]);
+      if (cols[1]) {
+        const t = BR_TYPE[cols[1].trim()] || "dealer";
+        tr.querySelector(".br-type").value = t;
+        tr.querySelector(".br-stage").innerHTML = brStageOptions(t, "발굴");
+      }
+      if (cols[2]) {
+        const type = tr.querySelector(".br-type").value;
+        const valid = [...stagesFor(type), ...CLOSED_STAGES];
+        if (valid.includes(cols[2].trim())) tr.querySelector(".br-stage").value = cols[2].trim();
+      }
+      if (cols[3] && (CFG.CATEGORIES || []).includes(cols[3].trim())) tr.querySelector(".br-cat").value = cols[3].trim();
+      set(".br-channel", cols[4]);
+      if (cols[5] && OWNERS.includes(cols[5].trim())) tr.querySelector(".br-owner").value = cols[5].trim();
+      set(".br-link", cols[6]);
+      set(".br-followers", cols[7]);
+      set(".br-notes", cols[8]);
+      tr = tr.nextElementSibling;
+    });
+    brUpdateCount();
+  }
+
+  async function saveBulkReg() {
+    const rows = [...$("#bulkreg-table tbody").children]
+      .map((tr) => ({
+        name: tr.querySelector(".br-name").value.trim(),
+        type: tr.querySelector(".br-type").value,
+        stage: tr.querySelector(".br-stage").value,
+        category: tr.querySelector(".br-cat").value || null,
+        channel: tr.querySelector(".br-channel").value.trim() || null,
+        owner: tr.querySelector(".br-owner").value || null,
+        link: tr.querySelector(".br-link").value.trim() || null,
+        followers: parseWon(tr.querySelector(".br-followers").value.trim()) || null,
+        notes: tr.querySelector(".br-notes").value.trim() || null,
+        channel_type: "온라인",
+      }))
+      .filter((r) => r.name);
+    if (!rows.length) { toast("등록할 행이 없어요 — 이름을 입력해주세요"); return; }
+
+    // 중복 검사 (기존 + 배치 내)
+    const norm2 = (x) => String(x || "").replace(/\s+/g, "").toLowerCase();
+    const existing = new Set(allLeads().map((l) => norm2(l.name)));
+    const seen = new Set();
+    const dups = [];
+    rows.forEach((r) => {
+      const k = norm2(r.name);
+      if (existing.has(k) || seen.has(k)) dups.push(r.name);
+      seen.add(k);
+    });
+    if (dups.length) {
+      alert(`⚠️ 이미 등록됐거나 배치 안에서 중복된 이름이 있어요:\n${dups.join(", ")}\n\n해당 행을 정리한 뒤 다시 등록해주세요.`);
+      return;
+    }
+
+    const { data, error } = await sb.from("leads").insert(rows).select("id, stage");
+    if (error) { toast("등록 실패: " + error.message); return; }
+    await sb.from("activities").insert((data || []).map((r) => ({
+      lead_id: r.id, action: "신규 등록", detail: `${r.stage} 단계로 등록 (일괄)`, actor: me() })));
+    toast(`${rows.length}명을 등록했어요`);
+    closeBulkReg();
+    loadLeads();
   }
 
   // ── 내 페이지 ──

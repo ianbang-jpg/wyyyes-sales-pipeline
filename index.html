@@ -50,6 +50,7 @@
         <span id="topbar-avatar" class="avatar" title="내 프로필"></span>
         <select id="me-select" title="내 이름 (히스토리 기록용)"></select>
         <button id="add-btn" class="primary">+ 신규 등록</button>
+        <button id="bulkreg-btn" title="여러 명을 표 형태로 한 번에 등록">⊞ 일괄 등록</button>
         <button id="export-btn" title="CSV 내보내기">CSV</button>
         <button id="logout-btn" title="로그아웃">로그아웃</button>
       </div>
@@ -321,6 +322,47 @@
           <button type="submit" class="primary">등록</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- 일괄 등록 모달 -->
+  <div id="bulkreg-backdrop" class="modal-backdrop hidden">
+    <div class="modal bulkreg">
+      <div class="modal-head">
+        <h2>⊞ 일괄 등록</h2>
+        <button type="button" id="bulkreg-close" title="닫기">✕</button>
+      </div>
+      <p class="muted bulkreg-hint">
+        <b>이름 · 유형 · 단계</b>만 필수예요. 나머지는 비워도 등록됩니다.
+        구글시트에서 여러 행을 복사해 <b>이름 칸에 붙여넣으면</b> 자동으로 채워져요
+        (열 순서: 이름 · 유형 · 단계 · 카테고리 · 채널 · 담당자 · 링크 · 팔로워 · 비고)
+      </p>
+      <div class="bulkreg-wrap">
+        <table id="bulkreg-table">
+          <thead>
+            <tr>
+              <th style="min-width:130px">이름*</th>
+              <th>유형*</th>
+              <th>단계*</th>
+              <th>카테고리</th>
+              <th style="min-width:110px">발굴 채널</th>
+              <th>담당자</th>
+              <th style="min-width:150px">링크</th>
+              <th style="min-width:90px">팔로워</th>
+              <th style="min-width:130px">비고</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="bulkreg-addrow">+ 행 추가</button>
+        <span class="spacer"></span>
+        <span id="bulkreg-count" class="muted"></span>
+        <button type="button" id="bulkreg-cancel">취소</button>
+        <button type="button" id="bulkreg-save" class="primary">일괄 등록</button>
+      </div>
     </div>
   </div>
 

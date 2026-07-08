@@ -897,3 +897,24 @@ a { color: #1a56c4; }
 .hist-restore { font-size: 12px; padding: 4px 10px; }
 #hist-table tbody tr { cursor: pointer; }
 .drawer-foot { display: flex; justify-content: space-between; gap: 8px; text-align: left; }
+
+/* 일괄 등록 */
+.modal.bulkreg { max-width: 1150px; }
+.bulkreg-hint { font-size: 12px; line-height: 1.7; margin: 0 0 14px; }
+.bulkreg-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+#bulkreg-table { border-collapse: collapse; width: 100%; }
+#bulkreg-table th {
+  font-size: 11px; color: var(--muted); font-weight: 700;
+  padding: 8px 6px; text-align: left;
+  background: var(--bg); position: static; cursor: default;
+  border-bottom: 1px solid var(--border);
+}
+#bulkreg-table td { padding: 3px; border-bottom: 1px solid #f0f1f5; }
+#bulkreg-table input, #bulkreg-table select {
+  border-color: transparent; border-radius: 6px;
+  padding: 6px 8px; font-size: 13px;
+  background: transparent; width: 100%;
+}
+#bulkreg-table input:hover, #bulkreg-table select:hover { background: var(--bg); }
+#bulkreg-table input:focus, #bulkreg-table select:focus { background: #fff; border-color: var(--navy); }
+.bulkreg .modal-actions { margin-top: 16px; }
