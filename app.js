@@ -469,6 +469,12 @@
     $("#bulkreg-cancel").addEventListener("click", closeBulkReg);
     $("#bulkreg-backdrop").addEventListener("click", (e) => { if (e.target.id === "bulkreg-backdrop") closeBulkReg(); });
     $("#bulkreg-addrow").addEventListener("click", () => brAddRows(1));
+    $("#bulkreg-file-btn").addEventListener("click", () => $("#bulkreg-file").click());
+    $("#bulkreg-file").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) brHandleFile(file);
+      e.target.value = "";
+    });
     $("#bulkreg-save").addEventListener("click", saveBulkReg);
     $("#bulkreg-table").addEventListener("input", brUpdateCount);
     $("#bulkreg-table").addEventListener("paste", (e) => {
@@ -1380,42 +1386,154 @@
   }
   function closeBulkReg() { $("#bulkreg-backdrop").classList.add("hidden"); lockScroll(false); }
 
+  // 한 행 채우기 (cols = [이름, 유형, 단계, 카테고리, 채널, 담당자, 링크, 팔로워, 비고])
+  function brSetRow(tr, cols) {
+    const val = (i) => (cols[i] === undefined || cols[i] === null) ? "" : String(cols[i]).trim();
+    const set = (sel, v) => { const el = tr.querySelector(sel); if (el && v !== "") el.value = v; };
+    set(".br-name", val(0));
+    if (val(1)) {
+      const t = BR_TYPE[val(1)] || "dealer";
+      tr.querySelector(".br-type").value = t;
+      tr.querySelector(".br-stage").innerHTML = brStageOptions(t, "발굴");
+    }
+    if (val(2)) {
+      const type = tr.querySelector(".br-type").value;
+      if ([...stagesFor(type), ...CLOSED_STAGES].includes(val(2))) tr.querySelector(".br-stage").value = val(2);
+    }
+    if (val(3) && (CFG.CATEGORIES || []).includes(val(3))) tr.querySelector(".br-cat").value = val(3);
+    set(".br-channel", val(4));
+    if (val(5) && OWNERS.includes(val(5))) tr.querySelector(".br-owner").value = val(5);
+    set(".br-link", val(6));
+    if (val(7)) {
+      const fv = followerFloor(parseWon(val(7)));
+      if (fv) tr.querySelector(".br-followers").value = fv;
+    }
+    set(".br-notes", val(8));
+  }
+
+  // 여러 행 채우기 — 헤더 행이 있으면 열 이름으로 매핑, 없으면 위치 순서
+  const BR_HEADER_ALIASES = [
+    ["이름", "셀러명", "채널명", "인플루언서", "name"],
+    ["유형", "type", "구분"],
+    ["단계", "상태", "stage", "status"],
+    ["카테고리", "category"],
+    ["채널", "발굴채널", "발굴 채널", "channel", "플랫폼"],
+    ["담당자", "owner", "담당"],
+    ["링크", "link", "url", "주소"],
+    ["팔로워", "팔로워수", "팔로워 수", "followers", "관심고객"],
+    ["비고", "메모", "notes", "특이사항"],
+  ];
+
+  function brFillRows(rows, startTr = null) {
+    if (!rows.length) return 0;
+    const normH = (x) => String(x || "").replace(/[\s*()]/g, "").toLowerCase();
+    // 헤더 감지: 첫 행에 '이름' 계열 별칭이 있으면 헤더로 취급
+    const first = rows[0].map(normH);
+    const isHeader = BR_HEADER_ALIASES[0].some((a) => first.includes(normH(a)));
+    let colMap = null; // 표준 열 인덱스 → 원본 열 인덱스
+    let dataRows = rows;
+    if (isHeader) {
+      colMap = BR_HEADER_ALIASES.map((aliases) =>
+        first.findIndex((hcell) => aliases.some((a) => normH(a) === hcell)));
+      dataRows = rows.slice(1);
+    }
+    const tb = $("#bulkreg-table tbody");
+    let tr = startTr;
+    let filled = 0;
+    dataRows.forEach((row) => {
+      const cols = colMap ? colMap.map((i) => (i >= 0 ? row[i] : "")) : row;
+      if (!String(cols[0] || "").trim()) return; // 이름 없는 행 무시
+      if (!tr) { brAddRows(1); tr = tb.lastElementChild; }
+      brSetRow(tr, cols);
+      filled++;
+      tr = tr.nextElementSibling;
+    });
+    brUpdateCount();
+    return filled;
+  }
+
   // TSV 붙여넣기 → 행 자동 채우기
   function brPaste(e) {
     const text = (e.clipboardData || window.clipboardData).getData("text");
     if (!/[\t\n]/.test(text)) return; // 단일 값이면 기본 동작
     e.preventDefault();
-    const startRow = e.target.closest("tr");
-    const tb = $("#bulkreg-table tbody");
-    const lines = text.split(/\r?\n/).filter((ln) => ln.trim());
-    let tr = startRow;
-    lines.forEach((line) => {
-      if (!tr) { brAddRows(1); tr = tb.lastElementChild; }
-      const cols = line.split("\t");
-      const set = (sel, v) => { const el = tr.querySelector(sel); if (el && v !== undefined && v.trim() !== "") el.value = v.trim(); };
-      set(".br-name", cols[0]);
-      if (cols[1]) {
-        const t = BR_TYPE[cols[1].trim()] || "dealer";
-        tr.querySelector(".br-type").value = t;
-        tr.querySelector(".br-stage").innerHTML = brStageOptions(t, "발굴");
+    const rows = text.split(/\r?\n/).filter((ln) => ln.trim()).map((ln) => ln.split("\t"));
+    brFillRows(rows, e.target.closest("tr"));
+  }
+
+  // ── 파일 업로드 (CSV/TSV/XLSX) ──
+  function parseCsvText(text) {
+    // 구분자 감지 (첫 줄 기준)
+    const firstLine = text.slice(0, text.indexOf("\n") + 1 || text.length);
+    const delim = (firstLine.match(/\t/g) || []).length >= (firstLine.match(/,/g) || []).length ? "\t" : ",";
+    const rows = [];
+    let row = [], cell = "", inQ = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (inQ) {
+        if (ch === '"') {
+          if (text[i + 1] === '"') { cell += '"'; i++; }
+          else inQ = false;
+        } else cell += ch;
+      } else if (ch === '"') inQ = true;
+      else if (ch === delim) { row.push(cell); cell = ""; }
+      else if (ch === "\n" || ch === "\r") {
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        row.push(cell); cell = "";
+        if (row.some((c2) => c2.trim())) rows.push(row);
+        row = [];
+      } else cell += ch;
+    }
+    row.push(cell);
+    if (row.some((c2) => c2.trim())) rows.push(row);
+    return rows;
+  }
+
+  function decodeKorean(buf) {
+    // UTF-8 우선, 깨짐(�) 많으면 EUC-KR 재시도 (엑셀 CSV 대응)
+    const utf8 = new TextDecoder("utf-8").decode(buf);
+    const bad = (utf8.match(/\uFFFD/g) || []).length;
+    if (bad === 0) return utf8;
+    try {
+      return new TextDecoder("euc-kr").decode(buf);
+    } catch { return utf8; }
+  }
+
+  let sheetJsLoading = null;
+  function loadSheetJs() {
+    if (window.XLSX) return Promise.resolve();
+    if (!sheetJsLoading) {
+      sheetJsLoading = new Promise((resolve, reject) => {
+        const sc = document.createElement("script");
+        sc.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+        sc.onload = resolve;
+        sc.onerror = () => reject(new Error("엑셀 파서 로드 실패"));
+        document.head.appendChild(sc);
+      });
+    }
+    return sheetJsLoading;
+  }
+
+  async function brHandleFile(file) {
+    try {
+      const buf = await file.arrayBuffer();
+      let rows;
+      if (/\.xlsx?$/i.test(file.name)) {
+        await loadSheetJs();
+        const wb = window.XLSX.read(buf, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
+      } else {
+        rows = parseCsvText(decodeKorean(buf));
       }
-      if (cols[2]) {
-        const type = tr.querySelector(".br-type").value;
-        const valid = [...stagesFor(type), ...CLOSED_STAGES];
-        if (valid.includes(cols[2].trim())) tr.querySelector(".br-stage").value = cols[2].trim();
-      }
-      if (cols[3] && (CFG.CATEGORIES || []).includes(cols[3].trim())) tr.querySelector(".br-cat").value = cols[3].trim();
-      set(".br-channel", cols[4]);
-      if (cols[5] && OWNERS.includes(cols[5].trim())) tr.querySelector(".br-owner").value = cols[5].trim();
-      set(".br-link", cols[6]);
-      if (cols[7] && cols[7].trim()) {
-        const fv = followerFloor(parseWon(cols[7]));
-        if (fv) tr.querySelector(".br-followers").value = fv;
-      }
-      set(".br-notes", cols[8]);
-      tr = tr.nextElementSibling;
-    });
-    brUpdateCount();
+      // 첫 번째 빈 행부터 채우기
+      const firstEmpty = [...$("#bulkreg-table tbody").children]
+        .find((tr) => !tr.querySelector(".br-name").value.trim()) || null;
+      const n = brFillRows(rows, firstEmpty);
+      toast(n ? `${n}행을 불러왔어요 — 내용 확인 후 등록해주세요` : "불러올 행이 없어요 (이름 열 확인)");
+    } catch (err) {
+      toast("파일 읽기 실패: " + err.message);
+    }
   }
 
   async function saveBulkReg() {

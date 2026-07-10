@@ -335,8 +335,9 @@
       </div>
       <p class="muted bulkreg-hint">
         <b>이름 · 유형 · 단계</b>만 필수예요. 나머지는 비워도 등록됩니다.
-        구글시트에서 여러 행을 복사해 <b>이름 칸에 붙여넣으면</b> 자동으로 채워져요
-        (열 순서: 이름 · 유형 · 단계 · 카테고리 · 채널 · 담당자 · 링크 · 팔로워 · 비고)
+        구글시트에서 복사해 <b>이름 칸에 붙여넣거나</b>, <b>📂 CSV/엑셀 파일을 불러오면</b> 자동으로 채워져요.
+        첫 행에 헤더(이름·유형·단계 등)가 있으면 열 순서와 무관하게 인식하고, 없으면
+        이름 · 유형 · 단계 · 카테고리 · 채널 · 담당자 · 링크 · 팔로워 · 비고 순서로 읽어요
       </p>
       <div class="bulkreg-wrap">
         <table id="bulkreg-table">
@@ -359,6 +360,8 @@
       </div>
       <div class="modal-actions">
         <button type="button" id="bulkreg-addrow">+ 행 추가</button>
+        <button type="button" id="bulkreg-file-btn">📂 파일 불러오기</button>
+        <input type="file" id="bulkreg-file" class="hidden" accept=".csv,.tsv,.txt,.xlsx,.xls">
         <span class="spacer"></span>
         <span id="bulkreg-count" class="muted"></span>
         <button type="button" id="bulkreg-cancel">취소</button>
