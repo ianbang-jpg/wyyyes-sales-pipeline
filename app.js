@@ -471,14 +471,17 @@
     $("#bulkreg-addrow").addEventListener("click", () => brAddRows(1));
     $("#bulkreg-file-btn").addEventListener("click", () => $("#bulkreg-file").click());
     const downloadTemplate = (type) => {
-      const esc = (v) => /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+      const esc2 = (v) => /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
       const tpl = type === "dealer"
-        ? { label: "딜러", ex: ["예시딜러 (지우고 사용)", "딜러", "컨택", "피규어", "인스타그램", OWNERS[0] || "", "https://instagram.com/...", "1만",
-            "단계: 발굴/컨택/응답/협의/승인/판매 · 유형 칸은 '딜러' 유지"] }
-        : { label: "인플루언서", ex: ["예시인플루언서 (지우고 사용)", "인플루언서", "협의", "카드", "유튜브", OWNERS[0] || "", "https://youtube.com/@...", "10만",
-            "단계: 발굴/컨택/응답/협의/계약/진행/완료 · 유형 칸은 '인플루언서' 유지"] };
-      const rows = [["이름", "유형", "단계", "카테고리", "발굴 채널", "담당자", "링크", "팔로워", "비고"], tpl.ex];
-      const csv = "\uFEFF" + rows.map((r) => r.map(esc).join(",")).join("\r\n");
+        ? { label: "딜러",
+            head: ["이름", "유형", "단계", "카테고리", "발굴 채널", "온·오프라인", "링크", "팔로워", "사업자 여부", "지역", "주요 상품", "컨택포인트", "컨택일", "닉네임", "승인일", "비고"],
+            ex: ["예시딜러 (지우고 사용)", "딜러", "컨택", "피규어", "인스타그램", "온라인", "https://instagram.com/...", "1만", "사업자", "서울", "원피스 피규어", "인스타 DM", "2026-07-01", "", "",
+              "단계: 발굴/컨택/응답/협의/승인/판매 · 온·오프라인: 온라인/오프라인 · 사업자 여부: 사업자/개인"] }
+        : { label: "인플루언서",
+            head: ["이름", "유형", "단계", "카테고리", "발굴 채널", "링크", "팔로워", "주요 상품", "컨택포인트", "컨택일", "협업 유형", "계획 단가", "실제 단가", "비고"],
+            ex: ["예시인플루언서 (지우고 사용)", "인플루언서", "협의", "카드", "유튜브", "https://youtube.com/@...", "10만", "포켓몬 카드", "이메일", "2026-07-01", "브레이크 라이브", "30만원", "",
+              "단계: 발굴/컨택/응답/협의/계약/진행/완료 · 단가: 숫자 또는 '30만원'"] };
+      const csv = "\uFEFF" + [tpl.head, tpl.ex].map((r) => r.map(esc2).join(",")).join("\r\n");
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
       a.download = `일괄등록_${tpl.label}_템플릿.csv`;
@@ -486,6 +489,7 @@
       URL.revokeObjectURL(a.href);
     };
     $("#bulkreg-tpl-dealer").addEventListener("click", () => downloadTemplate("dealer"));
+    $("#my-import-btn")?.addEventListener("click", () => { openBulkReg(); $("#bulkreg-file").click(); });
     $("#bulkreg-tpl-influencer").addEventListener("click", () => downloadTemplate("influencer"));
     $("#bulkreg-file").addEventListener("change", (e) => {
       const file = e.target.files[0];
@@ -1441,6 +1445,33 @@
     ["비고", "메모", "notes", "특이사항"],
   ];
 
+  // 그리드에 없는 확장 컬럼 — 파일 헤더에 있으면 행에 담아뒀다가 등록 시 함께 저장
+  function normDateStr(v) {
+    const s = String(v || "").trim();
+    let m = s.match(/^(\d{4})[.\-\/]\s?(\d{1,2})[.\-\/]\s?(\d{1,2})/);
+    if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+    m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})$/); // 엑셀 m/d/yy
+    if (m) { const y = m[3].length === 2 ? "20" + m[3] : m[3]; return `${y}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`; }
+    m = s.match(/^(\d{1,2})[.\/](\d{1,2})$/); // 월/일 → 올해
+    if (m) return `${new Date().getFullYear()}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+    return null;
+  }
+  const BR_EXTRA_FIELDS = [
+    { key: "channel_type", aliases: ["온오프라인", "온·오프라인", "온/오프라인", "channel_type"],
+      parse: (v) => ["온라인", "오프라인"].includes(v) ? v : null },
+    { key: "business", aliases: ["사업자", "사업자여부", "사업자 여부", "business"],
+      parse: (v) => ["사업자", "개인"].includes(v) ? v : null },
+    { key: "region", aliases: ["지역", "region"], parse: (v) => v },
+    { key: "main_products", aliases: ["주요상품", "주요 상품", "상품", "main_products"], parse: (v) => v },
+    { key: "contact_point", aliases: ["컨택포인트", "컨택 포인트", "연락처", "contact_point"], parse: (v) => v },
+    { key: "contact_date", aliases: ["컨택일", "컨택 일자", "contact_date"], parse: normDateStr },
+    { key: "nickname", aliases: ["닉네임", "와이스닉네임", "와이스 닉네임", "nickname"], parse: (v) => v },
+    { key: "approved_at", aliases: ["승인일", "approved_at"], parse: normDateStr },
+    { key: "collab_type", aliases: ["협업유형", "협업 유형", "collab_type"], parse: (v) => v },
+    { key: "planned_rate", aliases: ["계획단가", "계획 단가", "planned_rate"], parse: (v) => parseWon(v) },
+    { key: "actual_rate", aliases: ["실제단가", "실제 단가", "actual_rate"], parse: (v) => parseWon(v) },
+  ];
+
   function brFillRows(rows, startTr = null) {
     if (!rows.length) return 0;
     const normH = (x) => String(x || "").replace(/[\s*()]/g, "").toLowerCase();
@@ -1448,10 +1479,14 @@
     const first = rows[0].map(normH);
     const isHeader = BR_HEADER_ALIASES[0].some((a) => first.includes(normH(a)));
     let colMap = null; // 표준 열 인덱스 → 원본 열 인덱스
+    let extraMap = []; // [{field, idx}]
     let dataRows = rows;
     if (isHeader) {
       colMap = BR_HEADER_ALIASES.map((aliases) =>
         first.findIndex((hcell) => aliases.some((a) => normH(a) === hcell)));
+      extraMap = BR_EXTRA_FIELDS
+        .map((f) => ({ f, idx: first.findIndex((hcell) => f.aliases.some((a) => normH(a) === hcell)) }))
+        .filter((x) => x.idx >= 0);
       dataRows = rows.slice(1);
     }
     const tb = $("#bulkreg-table tbody");
@@ -1462,6 +1497,14 @@
       if (!String(cols[0] || "").trim()) return; // 이름 없는 행 무시
       if (!tr) { brAddRows(1); tr = tb.lastElementChild; }
       brSetRow(tr, cols);
+      const extra = {};
+      extraMap.forEach(({ f, idx }) => {
+        const raw = String(row[idx] ?? "").trim();
+        if (!raw) return;
+        const v = f.parse(raw);
+        if (v !== null && v !== undefined && v !== "") extra[f.key] = v;
+      });
+      tr.dataset.brExtra = JSON.stringify(extra); // 덮어써서 이전 값 제거
       filled++;
       tr = tr.nextElementSibling;
     });
@@ -1553,6 +1596,21 @@
     }
   }
 
+  // 파일에서 온 확장 컬럼(dataset.brExtra) → insert 필드로 변환
+  function brRowExtra(tr) {
+    let e;
+    try { e = JSON.parse(tr.dataset.brExtra || "{}"); } catch { return {}; }
+    const out = {};
+    for (const k of ["channel_type", "business", "region", "main_products", "contact_point", "contact_date", "nickname", "approved_at"])
+      if (e[k] != null) out[k] = e[k];
+    if (tr.querySelector(".br-type").value === "influencer") {
+      const extra = {};
+      for (const k of ["collab_type", "planned_rate", "actual_rate"]) if (e[k] != null) extra[k] = e[k];
+      if (Object.keys(extra).length) out.extra = extra;
+    }
+    return out;
+  }
+
   async function saveBulkReg() {
     const rows = [...$("#bulkreg-table tbody").children]
       .map((tr) => ({
@@ -1566,6 +1624,7 @@
         followers: tr.querySelector(".br-followers").value ? Number(tr.querySelector(".br-followers").value) : null,
         notes: tr.querySelector(".br-notes").value.trim() || null,
         channel_type: "온라인",
+        ...brRowExtra(tr),
       }))
       .filter((r) => r.name);
     if (!rows.length) { toast("등록할 행이 없어요 — 이름을 입력해주세요"); return; }

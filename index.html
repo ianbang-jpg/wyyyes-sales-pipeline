@@ -116,7 +116,10 @@
             <input type="file" id="my-avatar-input" accept="image/*" class="hidden">
           </div>
         </div>
-        <button id="my-link-btn" title="이 페이지로 바로 오는 링크를 복사합니다">🔗 내 전용 링크 복사</button>
+        <div class="my-head-actions">
+          <button id="my-import-btn" title="CSV/엑셀 파일로 일괄 등록을 시작합니다">📂 파일 불러오기</button>
+          <button id="my-link-btn" title="이 페이지로 바로 오는 링크를 복사합니다">🔗 내 전용 링크 복사</button>
+        </div>
       </div>
       <section class="kpi-row" id="my-kpi"></section>
       <div class="dash-grid my-grid">
@@ -337,7 +340,8 @@
         <b>이름 · 유형 · 단계</b>만 필수예요. 나머지는 비워도 등록됩니다.
         구글시트에서 복사해 <b>이름 칸에 붙여넣거나</b>, <b>📂 CSV/엑셀 파일을 불러오면</b> 자동으로 채워져요.
         첫 행에 헤더(이름·유형·단계 등)가 있으면 열 순서와 무관하게 인식하고, 없으면
-        이름 · 유형 · 단계 · 카테고리 · 채널 · 담당자 · 링크 · 팔로워 · 비고 순서로 읽어요
+        이름 · 유형 · 단계 · 카테고리 · 채널 · 담당자 · 링크 · 팔로워 · 비고 순서로 읽어요.
+        템플릿의 추가 컬럼(지역·주요 상품·컨택포인트·단가 등)은 표에 보이지 않아도 등록 시 함께 저장돼요
       </p>
       <div class="bulkreg-wrap">
         <table id="bulkreg-table">

@@ -610,6 +610,7 @@ td.td-na .na-line { margin-top: 0; max-width: 220px; overflow: hidden; text-over
 .my-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
 .my-id { display: flex; align-items: center; gap: 14px; }
 .my-head h2 { margin: 0; font-size: 18px; }
+.my-head-actions { display: flex; gap: 8px; }
 .my-grid { margin-bottom: 20px; }
 .my-board-title { font-size: 14px; color: var(--muted); margin: 0 0 12px; }
 
