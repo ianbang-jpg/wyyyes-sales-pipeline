@@ -470,20 +470,23 @@
     $("#bulkreg-backdrop").addEventListener("click", (e) => { if (e.target.id === "bulkreg-backdrop") closeBulkReg(); });
     $("#bulkreg-addrow").addEventListener("click", () => brAddRows(1));
     $("#bulkreg-file-btn").addEventListener("click", () => $("#bulkreg-file").click());
-    $("#bulkreg-template").addEventListener("click", () => {
+    const downloadTemplate = (type) => {
       const esc = (v) => /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
-      const rows = [
-        ["이름", "유형", "단계", "카테고리", "발굴 채널", "담당자", "링크", "팔로워", "비고"],
-        ["예시딜러 (지우고 사용)", "딜러", "컨택", "피규어", "인스타그램", OWNERS[0] || "", "https://instagram.com/...", "1만", "딜러 단계: 발굴/컨택/응답/협의/승인/판매"],
-        ["예시인플루언서 (지우고 사용)", "인플루언서", "협의", "카드", "유튜브", OWNERS[0] || "", "https://youtube.com/@...", "10만", "인플루언서 단계: 발굴/컨택/응답/협의/계약/진행/완료"],
-      ];
+      const tpl = type === "dealer"
+        ? { label: "딜러", ex: ["예시딜러 (지우고 사용)", "딜러", "컨택", "피규어", "인스타그램", OWNERS[0] || "", "https://instagram.com/...", "1만",
+            "단계: 발굴/컨택/응답/협의/승인/판매 · 유형 칸은 '딜러' 유지"] }
+        : { label: "인플루언서", ex: ["예시인플루언서 (지우고 사용)", "인플루언서", "협의", "카드", "유튜브", OWNERS[0] || "", "https://youtube.com/@...", "10만",
+            "단계: 발굴/컨택/응답/협의/계약/진행/완료 · 유형 칸은 '인플루언서' 유지"] };
+      const rows = [["이름", "유형", "단계", "카테고리", "발굴 채널", "담당자", "링크", "팔로워", "비고"], tpl.ex];
       const csv = "\uFEFF" + rows.map((r) => r.map(esc).join(",")).join("\r\n");
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-      a.download = "일괄등록_템플릿.csv";
+      a.download = `일괄등록_${tpl.label}_템플릿.csv`;
       a.click();
       URL.revokeObjectURL(a.href);
-    });
+    };
+    $("#bulkreg-tpl-dealer").addEventListener("click", () => downloadTemplate("dealer"));
+    $("#bulkreg-tpl-influencer").addEventListener("click", () => downloadTemplate("influencer"));
     $("#bulkreg-file").addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (file) brHandleFile(file);
