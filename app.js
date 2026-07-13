@@ -464,33 +464,19 @@
 
     // 버튼
     $("#add-btn").addEventListener("click", () => openModal(null));
-    $("#bulkreg-btn").addEventListener("click", openBulkReg);
+    $("#bulkreg-btn").addEventListener("click", () => openBulkReg());
     $("#bulkreg-close").addEventListener("click", closeBulkReg);
     $("#bulkreg-cancel").addEventListener("click", closeBulkReg);
     $("#bulkreg-backdrop").addEventListener("click", (e) => { if (e.target.id === "bulkreg-backdrop") closeBulkReg(); });
     $("#bulkreg-addrow").addEventListener("click", () => brAddRows(1));
     $("#bulkreg-file-btn").addEventListener("click", () => $("#bulkreg-file").click());
-    const downloadTemplate = (type) => {
-      const esc2 = (v) => /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
-      const tpl = type === "dealer"
-        ? { label: "딜러",
-            head: ["이름", "유형", "단계", "카테고리", "발굴 채널", "온·오프라인", "링크", "팔로워", "사업자 여부", "지역", "주요 상품", "컨택포인트", "컨택일", "닉네임", "승인일", "비고"],
-            ex: ["예시딜러 (지우고 사용)", "딜러", "컨택", "피규어", "인스타그램", "온라인", "https://instagram.com/...", "1만", "사업자", "서울", "원피스 피규어", "인스타 DM", "2026-07-01", "", "",
-              "단계: 발굴/컨택/응답/협의/승인/판매 · 온·오프라인: 온라인/오프라인 · 사업자 여부: 사업자/개인"] }
-        : { label: "인플루언서",
-            head: ["이름", "유형", "단계", "카테고리", "발굴 채널", "링크", "팔로워", "주요 상품", "컨택포인트", "컨택일", "협업 유형", "계획 단가", "실제 단가", "비고"],
-            ex: ["예시인플루언서 (지우고 사용)", "인플루언서", "협의", "카드", "유튜브", "https://youtube.com/@...", "10만", "포켓몬 카드", "이메일", "2026-07-01", "브레이크 라이브", "30만원", "",
-              "단계: 발굴/컨택/응답/협의/계약/진행/완료 · 단가: 숫자 또는 '30만원'"] };
-      const csv = "\uFEFF" + [tpl.head, tpl.ex].map((r) => r.map(esc2).join(",")).join("\r\n");
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-      a.download = `일괄등록_${tpl.label}_템플릿.csv`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    };
-    $("#bulkreg-tpl-dealer").addEventListener("click", () => downloadTemplate("dealer"));
+    $("#bulkreg-type").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-value]");
+      if (btn && btn.dataset.value !== brType) brSwitchType(btn.dataset.value, true);
+    });
+    $("#bulkreg-tpl-dealer").addEventListener("click", () => brDownloadTemplate("dealer"));
     $("#my-import-btn")?.addEventListener("click", () => { openBulkReg(); $("#bulkreg-file").click(); });
-    $("#bulkreg-tpl-influencer").addEventListener("click", () => downloadTemplate("influencer"));
+    $("#bulkreg-tpl-influencer").addEventListener("click", () => brDownloadTemplate("influencer"));
     $("#bulkreg-file").addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (file) brHandleFile(file);
@@ -500,13 +486,6 @@
     $("#bulkreg-table").addEventListener("input", brUpdateCount);
     $("#bulkreg-table").addEventListener("paste", (e) => {
       if (e.target.classList.contains("br-name")) brPaste(e);
-    });
-    $("#bulkreg-table").addEventListener("change", (e) => {
-      if (e.target.classList.contains("br-type")) {
-        const tr = e.target.closest("tr");
-        tr.querySelector(".br-stage").innerHTML = brStageOptions(e.target.value, "발굴");
-      }
-      if (e.target.classList.contains("br-del")) return;
     });
     $("#bulkreg-table").addEventListener("click", (e) => {
       const del = e.target.closest(".br-del");
@@ -1363,89 +1342,15 @@
     dayPopDate = null;
   }
 
-  // ── 일괄 등록 ──
+  // ── 일괄 등록 (딜러/인플루언서 분리 그리드) ──
   const BR_TYPE = { "딜러": "dealer", "인플루언서": "influencer", "dealer": "dealer", "influencer": "influencer" };
+  let brType = "dealer";
 
   function brStageOptions(type, selected) {
     return [...stagesFor(type), ...CLOSED_STAGES].map((st) =>
       `<option ${st === selected ? "selected" : ""}>${st}</option>`).join("");
   }
 
-  function brRowHtml() {
-    return `
-      <tr>
-        <td><input class="br-name" placeholder="이름"></td>
-        <td><select class="br-type"><option value="dealer">딜러</option><option value="influencer">인플루언서</option></select></td>
-        <td><select class="br-stage">${brStageOptions("dealer", "발굴")}</select></td>
-        <td><select class="br-cat"><option value=""></option>${(CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("")}</select></td>
-        <td><input class="br-channel" list="channel-options"></td>
-        <td><select class="br-owner"><option value=""></option>${OWNERS.map((o) => `<option ${o === me() ? "selected" : ""}>${esc(o)}</option>`).join("")}</select></td>
-        <td><input class="br-link" placeholder="https://…"></td>
-        <td><select class="br-followers">${followerOptions("")}</select></td>
-        <td><input class="br-notes"></td>
-        <td><button type="button" class="br-del note-del" title="행 삭제">✕</button></td>
-      </tr>`;
-  }
-
-  function brAddRows(n = 1) {
-    const tb = $("#bulkreg-table tbody");
-    for (let i = 0; i < n; i++) tb.insertAdjacentHTML("beforeend", brRowHtml());
-  }
-
-  function brUpdateCount() {
-    const n = [...$$("#bulkreg-table .br-name")].filter((i) => i.value.trim()).length;
-    $("#bulkreg-count").textContent = n ? `${n}명 등록 대기` : "";
-  }
-
-  function openBulkReg() {
-    $("#bulkreg-table tbody").innerHTML = "";
-    brAddRows(5);
-    brUpdateCount();
-    $("#bulkreg-backdrop").classList.remove("hidden");
-    lockScroll(true);
-    $("#bulkreg-table .br-name").focus();
-  }
-  function closeBulkReg() { $("#bulkreg-backdrop").classList.add("hidden"); lockScroll(false); }
-
-  // 한 행 채우기 (cols = [이름, 유형, 단계, 카테고리, 채널, 담당자, 링크, 팔로워, 비고])
-  function brSetRow(tr, cols) {
-    const val = (i) => (cols[i] === undefined || cols[i] === null) ? "" : String(cols[i]).trim();
-    const set = (sel, v) => { const el = tr.querySelector(sel); if (el && v !== "") el.value = v; };
-    set(".br-name", val(0));
-    if (val(1)) {
-      const t = BR_TYPE[val(1)] || "dealer";
-      tr.querySelector(".br-type").value = t;
-      tr.querySelector(".br-stage").innerHTML = brStageOptions(t, "발굴");
-    }
-    if (val(2)) {
-      const type = tr.querySelector(".br-type").value;
-      if ([...stagesFor(type), ...CLOSED_STAGES].includes(val(2))) tr.querySelector(".br-stage").value = val(2);
-    }
-    if (val(3) && (CFG.CATEGORIES || []).includes(val(3))) tr.querySelector(".br-cat").value = val(3);
-    set(".br-channel", val(4));
-    if (val(5) && OWNERS.includes(val(5))) tr.querySelector(".br-owner").value = val(5);
-    set(".br-link", val(6));
-    if (val(7)) {
-      const fv = followerFloor(parseWon(val(7)));
-      if (fv) tr.querySelector(".br-followers").value = fv;
-    }
-    set(".br-notes", val(8));
-  }
-
-  // 여러 행 채우기 — 헤더 행이 있으면 열 이름으로 매핑, 없으면 위치 순서
-  const BR_HEADER_ALIASES = [
-    ["이름", "셀러명", "채널명", "인플루언서", "name"],
-    ["유형", "type", "구분"],
-    ["단계", "상태", "stage", "status"],
-    ["카테고리", "category"],
-    ["채널", "발굴채널", "발굴 채널", "channel", "플랫폼"],
-    ["담당자", "owner", "담당"],
-    ["링크", "link", "url", "주소"],
-    ["팔로워", "팔로워수", "팔로워 수", "followers", "관심고객"],
-    ["비고", "메모", "notes", "특이사항"],
-  ];
-
-  // 그리드에 없는 확장 컬럼 — 파일 헤더에 있으면 행에 담아뒀다가 등록 시 함께 저장
   function normDateStr(v) {
     const s = String(v || "").trim();
     let m = s.match(/^(\d{4})[.\-\/]\s?(\d{1,2})[.\-\/]\s?(\d{1,2})/);
@@ -1456,38 +1361,166 @@
     if (m) return `${new Date().getFullYear()}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
     return null;
   }
-  const BR_EXTRA_FIELDS = [
-    { key: "channel_type", aliases: ["온오프라인", "온·오프라인", "온/오프라인", "channel_type"],
-      parse: (v) => ["온라인", "오프라인"].includes(v) ? v : null },
-    { key: "business", aliases: ["사업자", "사업자여부", "사업자 여부", "business"],
-      parse: (v) => ["사업자", "개인"].includes(v) ? v : null },
-    { key: "region", aliases: ["지역", "region"], parse: (v) => v },
-    { key: "main_products", aliases: ["주요상품", "주요 상품", "상품", "main_products"], parse: (v) => v },
-    { key: "contact_point", aliases: ["컨택포인트", "컨택 포인트", "연락처", "contact_point"], parse: (v) => v },
-    { key: "contact_date", aliases: ["컨택일", "컨택 일자", "contact_date"], parse: normDateStr },
-    { key: "nickname", aliases: ["닉네임", "와이스닉네임", "와이스 닉네임", "nickname"], parse: (v) => v },
-    { key: "approved_at", aliases: ["승인일", "approved_at"], parse: normDateStr },
-    { key: "collab_type", aliases: ["협업유형", "협업 유형", "collab_type"], parse: (v) => v },
-    { key: "planned_rate", aliases: ["계획단가", "계획 단가", "planned_rate"], parse: (v) => parseWon(v) },
-    { key: "actual_rate", aliases: ["실제단가", "실제 단가", "actual_rate"], parse: (v) => parseWon(v) },
-  ];
+
+  // 필드 정의 — 그리드 셀·붙여넣기·파일 헤더 매핑·저장이 모두 이걸 공유
+  const BR_FIELDS = {
+    name:          { label: "이름*", w: 130, aliases: ["이름", "셀러명", "채널명", "인플루언서", "name"],
+                     cell: () => `<input class="br-name" data-k="name" placeholder="이름">` },
+    stage:         { label: "단계*", aliases: ["단계", "상태", "stage", "status"],
+                     cell: () => `<select data-k="stage">${brStageOptions(brType, "발굴")}</select>`,
+                     set: (el, v) => { if ([...stagesFor(brType), ...CLOSED_STAGES].includes(v)) el.value = v; } },
+    category:      { label: "카테고리", aliases: ["카테고리", "category"],
+                     cell: () => `<select data-k="category"><option value=""></option>${(CFG.CATEGORIES || []).map((c) => `<option>${esc(c)}</option>`).join("")}</select>`,
+                     set: (el, v) => { if ((CFG.CATEGORIES || []).includes(v)) el.value = v; } },
+    channel:       { label: "발굴 채널", w: 110, aliases: ["채널", "발굴채널", "발굴 채널", "channel", "플랫폼"],
+                     cell: () => `<input data-k="channel" list="channel-options">` },
+    channel_type:  { label: "온·오프라인", aliases: ["온오프라인", "온·오프라인", "온/오프라인", "channel_type"],
+                     cell: () => `<select data-k="channel_type"><option>온라인</option><option>오프라인</option></select>`,
+                     set: (el, v) => { if (["온라인", "오프라인"].includes(v)) el.value = v; } },
+    owner:         { label: "담당자", aliases: ["담당자", "owner", "담당"],
+                     cell: () => `<select data-k="owner"><option value=""></option>${OWNERS.map((o) => `<option ${o === me() ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`,
+                     set: (el, v) => { if (OWNERS.includes(v)) el.value = v; } },
+    link:          { label: "링크", w: 150, aliases: ["링크", "link", "url", "주소"],
+                     cell: () => `<input data-k="link" placeholder="https://…">` },
+    followers:     { label: "팔로워", w: 90, aliases: ["팔로워", "팔로워수", "팔로워 수", "followers", "관심고객"],
+                     cell: () => `<select data-k="followers">${followerOptions("")}</select>`,
+                     set: (el, v) => { const fv = followerFloor(parseWon(v)); if (fv) el.value = fv; },
+                     out: (el) => el.value ? Number(el.value) : null },
+    business:      { label: "사업자", aliases: ["사업자", "사업자여부", "사업자 여부", "business"],
+                     cell: () => `<select data-k="business"><option value=""></option><option>사업자</option><option>개인</option></select>`,
+                     set: (el, v) => { if (["사업자", "개인"].includes(v)) el.value = v; } },
+    region:        { label: "지역", w: 80, aliases: ["지역", "region"],
+                     cell: () => `<input data-k="region">` },
+    main_products: { label: "주요 상품", w: 110, aliases: ["주요상품", "주요 상품", "상품", "main_products"],
+                     cell: () => `<input data-k="main_products">` },
+    contact_point: { label: "컨택포인트", w: 100, aliases: ["컨택포인트", "컨택 포인트", "연락처", "contact_point"],
+                     cell: () => `<input data-k="contact_point">` },
+    contact_date:  { label: "컨택일", w: 130, aliases: ["컨택일", "컨택 일자", "contact_date"],
+                     cell: () => `<input data-k="contact_date" type="date">`,
+                     set: (el, v) => { const d = normDateStr(v); if (d) el.value = d; } },
+    nickname:      { label: "닉네임", w: 90, aliases: ["닉네임", "와이스닉네임", "와이스 닉네임", "nickname"],
+                     cell: () => `<input data-k="nickname">` },
+    approved_at:   { label: "승인일", w: 130, aliases: ["승인일", "approved_at"],
+                     cell: () => `<input data-k="approved_at" type="date">`,
+                     set: (el, v) => { const d = normDateStr(v); if (d) el.value = d; } },
+    collab_type:   { label: "협업 유형", w: 110, aliases: ["협업유형", "협업 유형", "collab_type"],
+                     cell: () => `<input data-k="collab_type" placeholder="예: 브레이크 라이브">` },
+    planned_rate:  { label: "계획 단가", w: 90, aliases: ["계획단가", "계획 단가", "planned_rate"],
+                     cell: () => `<input data-k="planned_rate" placeholder="30만원">`,
+                     set: (el, v) => { const n = parseWon(v); if (n != null) el.value = n; },
+                     out: (el) => parseWon(el.value) },
+    actual_rate:   { label: "실제 단가", w: 90, aliases: ["실제단가", "실제 단가", "actual_rate"],
+                     cell: () => `<input data-k="actual_rate" placeholder="30만원">`,
+                     set: (el, v) => { const n = parseWon(v); if (n != null) el.value = n; },
+                     out: (el) => parseWon(el.value) },
+    notes:         { label: "비고", w: 130, aliases: ["비고", "메모", "notes", "특이사항"],
+                     cell: () => `<input data-k="notes">` },
+  };
+
+  const BR_COLS = {
+    dealer: ["name", "stage", "category", "channel", "channel_type", "owner", "link", "followers",
+             "business", "region", "main_products", "contact_point", "contact_date", "nickname", "approved_at", "notes"],
+    influencer: ["name", "stage", "category", "channel", "owner", "link", "followers",
+                 "main_products", "contact_point", "contact_date", "collab_type", "planned_rate", "actual_rate", "notes"],
+  };
+  // extra(jsonb)로 들어가는 키 (인플루언서 단가 체계)
+  const BR_JSONB_KEYS = ["collab_type", "planned_rate", "actual_rate"];
+
+  function brRowHtml() {
+    return `<tr>${BR_COLS[brType].map((k) => `<td>${BR_FIELDS[k].cell()}</td>`).join("")}
+      <td><button type="button" class="br-del note-del" title="행 삭제">✕</button></td></tr>`;
+  }
+
+  function brAddRows(n = 1) {
+    const tb = $("#bulkreg-table tbody");
+    for (let i = 0; i < n; i++) tb.insertAdjacentHTML("beforeend", brRowHtml());
+  }
+
+  function brRenderGrid() {
+    $("#bulkreg-table thead").innerHTML = `<tr>${BR_COLS[brType].map((k) => {
+      const f = BR_FIELDS[k];
+      return `<th${f.w ? ` style="min-width:${f.w}px"` : ""}>${f.label}</th>`;
+    }).join("")}<th></th></tr>`;
+    $("#bulkreg-table tbody").innerHTML = "";
+    brAddRows(5);
+    $$("#bulkreg-type button").forEach((b) => b.classList.toggle("active", b.dataset.value === brType));
+    brUpdateCount();
+  }
+
+  function brHasContent() {
+    return [...$$("#bulkreg-table .br-name")].some((i) => i.value.trim());
+  }
+
+  function brSwitchType(type, confirmIfDirty = false) {
+    if (type === brType) return true;
+    if (confirmIfDirty && brHasContent() &&
+        !confirm(`표를 ${type === "dealer" ? "딜러" : "인플루언서"} 모드로 전환하면 입력 중인 내용이 사라져요. 계속할까요?`)) {
+      return false;
+    }
+    brType = type;
+    brRenderGrid();
+    return true;
+  }
+
+  function brUpdateCount() {
+    const n = [...$$("#bulkreg-table .br-name")].filter((i) => i.value.trim()).length;
+    $("#bulkreg-count").textContent = n ? `${n}명 등록 대기` : "";
+  }
+
+  function openBulkReg(type = "dealer") {
+    brType = type;
+    brRenderGrid();
+    $("#bulkreg-backdrop").classList.remove("hidden");
+    lockScroll(true);
+    $("#bulkreg-table .br-name").focus();
+  }
+  function closeBulkReg() { $("#bulkreg-backdrop").classList.add("hidden"); lockScroll(false); }
+
+  // 한 행 채우기 — cols는 현재 유형의 그리드 열 순서
+  function brSetRow(tr, cols) {
+    BR_COLS[brType].forEach((k, i) => {
+      const v = (cols[i] === undefined || cols[i] === null) ? "" : String(cols[i]).trim();
+      if (v === "") return;
+      const el = tr.querySelector(`[data-k="${k}"]`);
+      if (!el) return;
+      const f = BR_FIELDS[k];
+      if (f.set) f.set(el, v); else el.value = v;
+    });
+  }
+
+  // 파일/붙여넣기 유형 자동 감지 — 헤더의 유형 전용 컬럼으로 판별
+  function brDetectType(headerCells, firstDataRow) {
+    const normH = (x) => String(x || "").replace(/[\s*()]/g, "").toLowerCase();
+    const typeIdx = headerCells.findIndex((h) => ["유형", "type", "구분"].some((a) => normH(a) === h));
+    if (typeIdx >= 0 && firstDataRow) {
+      const t = BR_TYPE[String(firstDataRow[typeIdx] || "").trim()];
+      if (t) return t;
+    }
+    const score = (keys) => keys.reduce((n, k) =>
+      n + (headerCells.some((h) => BR_FIELDS[k].aliases.some((a) => normH(a) === h)) ? 1 : 0), 0);
+    const dealerScore = score(["channel_type", "business", "nickname", "approved_at"]);
+    const infScore = score(["collab_type", "planned_rate", "actual_rate"]);
+    if (dealerScore === infScore) return null; // 판별 불가 → 현재 모드 유지
+    return dealerScore > infScore ? "dealer" : "influencer";
+  }
 
   function brFillRows(rows, startTr = null) {
     if (!rows.length) return 0;
     const normH = (x) => String(x || "").replace(/[\s*()]/g, "").toLowerCase();
-    // 헤더 감지: 첫 행에 '이름' 계열 별칭이 있으면 헤더로 취급
     const first = rows[0].map(normH);
-    const isHeader = BR_HEADER_ALIASES[0].some((a) => first.includes(normH(a)));
-    let colMap = null; // 표준 열 인덱스 → 원본 열 인덱스
-    let extraMap = []; // [{field, idx}]
+    const isHeader = BR_FIELDS.name.aliases.some((a) => first.includes(normH(a)));
     let dataRows = rows;
+    let colMap = null;
     if (isHeader) {
-      colMap = BR_HEADER_ALIASES.map((aliases) =>
-        first.findIndex((hcell) => aliases.some((a) => normH(a) === hcell)));
-      extraMap = BR_EXTRA_FIELDS
-        .map((f) => ({ f, idx: first.findIndex((hcell) => f.aliases.some((a) => normH(a) === hcell)) }))
-        .filter((x) => x.idx >= 0);
       dataRows = rows.slice(1);
+      // 유형 자동 전환 (내용이 있으면 confirm)
+      const detected = brDetectType(first, dataRows[0]);
+      if (detected && detected !== brType) {
+        if (!brSwitchType(detected, true)) return 0;
+        startTr = $("#bulkreg-table tbody tr"); // 그리드가 새로 그려짐
+      }
+      colMap = BR_COLS[brType].map((k) =>
+        first.findIndex((hcell) => BR_FIELDS[k].aliases.some((a) => normH(a) === hcell)));
     }
     const tb = $("#bulkreg-table tbody");
     let tr = startTr;
@@ -1497,14 +1530,6 @@
       if (!String(cols[0] || "").trim()) return; // 이름 없는 행 무시
       if (!tr) { brAddRows(1); tr = tb.lastElementChild; }
       brSetRow(tr, cols);
-      const extra = {};
-      extraMap.forEach(({ f, idx }) => {
-        const raw = String(row[idx] ?? "").trim();
-        if (!raw) return;
-        const v = f.parse(raw);
-        if (v !== null && v !== undefined && v !== "") extra[f.key] = v;
-      });
-      tr.dataset.brExtra = JSON.stringify(extra); // 덮어써서 이전 값 제거
       filled++;
       tr = tr.nextElementSibling;
     });
@@ -1519,6 +1544,31 @@
     e.preventDefault();
     const rows = text.split(/\r?\n/).filter((ln) => ln.trim()).map((ln) => ln.split("\t"));
     brFillRows(rows, e.target.closest("tr"));
+  }
+
+  // ── CSV 템플릿 (그리드 열 순서에서 담당자만 제외) ──
+  const BR_TPL_EXAMPLE = {
+    dealer: { name: "예시딜러 (지우고 사용)", stage: "컨택", category: "피규어", channel: "인스타그램",
+      channel_type: "온라인", link: "https://instagram.com/...", followers: "1만", business: "사업자",
+      region: "서울", main_products: "원피스 피규어", contact_point: "인스타 DM", contact_date: "2026-07-01",
+      nickname: "", approved_at: "", notes: "단계: 발굴/컨택/응답/협의/승인/판매 · 온·오프라인: 온라인/오프라인 · 사업자: 사업자/개인" },
+    influencer: { name: "예시인플루언서 (지우고 사용)", stage: "협의", category: "포켓몬카드", channel: "유튜브",
+      link: "https://youtube.com/@...", followers: "10만", main_products: "포켓몬 카드", contact_point: "이메일",
+      contact_date: "2026-07-01", collab_type: "브레이크 라이브", planned_rate: "30만원", actual_rate: "",
+      notes: "단계: 발굴/컨택/응답/협의/계약/진행/완료 · 단가: 숫자 또는 '30만원'" },
+  };
+
+  function brDownloadTemplate(type) {
+    const esc2 = (v) => /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    const keys = BR_COLS[type].filter((k) => k !== "owner");
+    const head = keys.map((k) => BR_FIELDS[k].label.replace("*", ""));
+    const ex = keys.map((k) => BR_TPL_EXAMPLE[type][k] ?? "");
+    const csv = "﻿" + [head, ex].map((r) => r.map(esc2).join(",")).join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `일괄등록_${type === "dealer" ? "딜러" : "인플루언서"}_템플릿.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   // ── 파일 업로드 (CSV/TSV/XLSX) ──
@@ -1552,7 +1602,7 @@
   function decodeKorean(buf) {
     // UTF-8 우선, 깨짐(�) 많으면 EUC-KR 재시도 (엑셀 CSV 대응)
     const utf8 = new TextDecoder("utf-8").decode(buf);
-    const bad = (utf8.match(/\uFFFD/g) || []).length;
+    const bad = (utf8.match(/�/g) || []).length;
     if (bad === 0) return utf8;
     try {
       return new TextDecoder("euc-kr").decode(buf);
@@ -1596,36 +1646,25 @@
     }
   }
 
-  // 파일에서 온 확장 컬럼(dataset.brExtra) → insert 필드로 변환
-  function brRowExtra(tr) {
-    let e;
-    try { e = JSON.parse(tr.dataset.brExtra || "{}"); } catch { return {}; }
-    const out = {};
-    for (const k of ["channel_type", "business", "region", "main_products", "contact_point", "contact_date", "nickname", "approved_at"])
-      if (e[k] != null) out[k] = e[k];
-    if (tr.querySelector(".br-type").value === "influencer") {
-      const extra = {};
-      for (const k of ["collab_type", "planned_rate", "actual_rate"]) if (e[k] != null) extra[k] = e[k];
-      if (Object.keys(extra).length) out.extra = extra;
-    }
-    return out;
-  }
-
   async function saveBulkReg() {
     const rows = [...$("#bulkreg-table tbody").children]
-      .map((tr) => ({
-        name: tr.querySelector(".br-name").value.trim(),
-        type: tr.querySelector(".br-type").value,
-        stage: tr.querySelector(".br-stage").value,
-        category: tr.querySelector(".br-cat").value || null,
-        channel: tr.querySelector(".br-channel").value.trim() || null,
-        owner: tr.querySelector(".br-owner").value || null,
-        link: tr.querySelector(".br-link").value.trim() || null,
-        followers: tr.querySelector(".br-followers").value ? Number(tr.querySelector(".br-followers").value) : null,
-        notes: tr.querySelector(".br-notes").value.trim() || null,
-        channel_type: "온라인",
-        ...brRowExtra(tr),
-      }))
+      .map((tr) => {
+        const r = { type: brType };
+        BR_COLS[brType].forEach((k) => {
+          const el = tr.querySelector(`[data-k="${k}"]`);
+          const f = BR_FIELDS[k];
+          r[k] = f.out ? f.out(el) : (el.value.trim() || null);
+        });
+        if (r.name) r.name = r.name.trim();
+        if (!r.channel_type) r.channel_type = "온라인";
+        // 인플루언서 단가·협업 유형은 extra(jsonb)로
+        const extra = {};
+        BR_JSONB_KEYS.forEach((k) => {
+          if (k in r) { if (r[k] != null) extra[k] = r[k]; delete r[k]; }
+        });
+        if (Object.keys(extra).length) r.extra = extra;
+        return r;
+      })
       .filter((r) => r.name);
     if (!rows.length) { toast("등록할 행이 없어요 — 이름을 입력해주세요"); return; }
 

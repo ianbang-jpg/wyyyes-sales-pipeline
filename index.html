@@ -334,31 +334,20 @@
     <div class="modal bulkreg">
       <div class="modal-head">
         <h2>⊞ 일괄 등록</h2>
+        <div class="btn-group seg" id="bulkreg-type">
+          <button type="button" data-value="dealer" class="active">딜러</button>
+          <button type="button" data-value="influencer">인플루언서</button>
+        </div>
         <button type="button" id="bulkreg-close" title="닫기">✕</button>
       </div>
       <p class="muted bulkreg-hint">
-        <b>이름 · 유형 · 단계</b>만 필수예요. 나머지는 비워도 등록됩니다.
+        위에서 <b>딜러/인플루언서</b>를 고르면 유형에 맞는 컬럼이 표시돼요. <b>이름 · 단계</b>만 필수, 나머지는 비워도 등록됩니다.
         구글시트에서 복사해 <b>이름 칸에 붙여넣거나</b>, <b>📂 CSV/엑셀 파일을 불러오면</b> 자동으로 채워져요.
-        첫 행에 헤더(이름·유형·단계 등)가 있으면 열 순서와 무관하게 인식하고, 없으면
-        이름 · 유형 · 단계 · 카테고리 · 채널 · 담당자 · 링크 · 팔로워 · 비고 순서로 읽어요.
-        템플릿의 추가 컬럼(지역·주요 상품·컨택포인트·단가 등)은 표에 보이지 않아도 등록 시 함께 저장돼요
+        첫 행에 헤더(이름·단계 등)가 있으면 열 순서와 무관하게 인식하고, 템플릿 파일이면 유형도 자동 전환됩니다
       </p>
       <div class="bulkreg-wrap">
         <table id="bulkreg-table">
-          <thead>
-            <tr>
-              <th style="min-width:130px">이름*</th>
-              <th>유형*</th>
-              <th>단계*</th>
-              <th>카테고리</th>
-              <th style="min-width:110px">발굴 채널</th>
-              <th>담당자</th>
-              <th style="min-width:150px">링크</th>
-              <th style="min-width:90px">팔로워</th>
-              <th style="min-width:130px">비고</th>
-              <th></th>
-            </tr>
-          </thead>
+          <thead></thead>
           <tbody></tbody>
         </table>
       </div>

@@ -502,6 +502,7 @@ td.td-notes {
 /* ── 모달 헤더 ── */
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .modal-head h2 { margin: 0; }
+.modal-head .seg { margin-left: 14px; margin-right: auto; }
 #modal-close { border: none; background: none; font-size: 15px; color: var(--muted); padding: 4px 8px; }
 #modal-close:hover { color: var(--text); border: none; }
 
